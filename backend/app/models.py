@@ -1,0 +1,30 @@
+from datetime import datetime
+
+from sqlalchemy import DateTime, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db import Base
+
+
+class FAQ(Base):
+    __tablename__ = "faqs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    question: Mapped[str] = mapped_column(String(500), unique=True)
+    answer: Mapped[str] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(100), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class UnansweredQuestion(Base):
+    __tablename__ = "unanswered_questions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    original_question: Mapped[str] = mapped_column(String(1000))
+    normalized_question: Mapped[str] = mapped_column(String(1000), unique=True)
+    frequency: Mapped[int] = mapped_column(Integer, default=1)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(String(30), default="open", index=True)
+
