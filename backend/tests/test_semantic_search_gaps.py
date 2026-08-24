@@ -30,23 +30,23 @@ def populated_session() -> Session:
     [
         (
             "What time can I get my room?",
-            "О котрій заселення та чи можливе раннє заселення?",
+            "What time is check-in, and is early check-in available?",
         ),
         (
             "Where can I work out after midnight?",
-            "Коли працює фітнес-центр?",
+            "When is the fitness center open?",
         ),
         (
             "Where can I eat sushi?",
-            "Розкажіть про ресторан Silk Road.",
+            "Tell me about Silk Road.",
         ),
         (
             "Could I get a room with a terrace?",
-            "Що входить у Penthouse Suite?",
+            "What is included in a Penthouse Suite?",
         ),
         (
             "Can my 19-year-old enter a family restaurant?",
-            "Які вікові обмеження діють у комплексі?",
+            "What age restrictions apply at the resort?",
         ),
     ],
 )
@@ -66,10 +66,10 @@ def test_all_five_prd_conversation_scenarios_in_english(
     populated_session: Session,
 ) -> None:
     known_cases = {
-        "Is the poker room open right now?": "Коли працює покерна кімната",
+        "Is the poker room open right now?": "poker room",
         "What is the best restaurant at the Meridian?": "Aurelia",
         "Can you recommend a good restaurant nearby?": "Carbone",
-        "I want to propose to my girlfriend this weekend. Can you help?": "освідчення",
+        "I want to propose to my girlfriend this weekend. Can you help?": "proposal",
     }
 
     for question, expected in known_cases.items():

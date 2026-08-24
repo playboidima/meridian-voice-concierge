@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import FAQ
 from app.services.embeddings import embed_faq, embed_query
-from app.services.search_aliases import FAQ_SEARCH_ALIASES
+from app.services.search_aliases import faq_search_aliases
 from app.services.text import normalize_question
 
 
@@ -31,12 +31,12 @@ def find_best_faq(db: Session, question: str) -> tuple[FAQ | None, float]:
     lexical_score = 0.0
     for faq in faqs:
         normalized_question = normalize_question(faq.question)
-        aliases = " ".join(FAQ_SEARCH_ALIASES.get(faq.question, ()))
+        aliases = " ".join(faq_search_aliases(faq.question))
         searchable = normalize_question(
             f"{faq.question} {aliases} {faq.answer} {faq.category}"
         )
         score = _score(normalized_query, searchable)
-        for marker in {"aurelia", "carbone", "освідчення"}:
+        for marker in {"aurelia", "carbone", "proposal", "освідчення"}:
             if marker in normalized_query.split() and marker in normalized_question.split():
                 score = min(1.0, score + 0.4)
         if score > lexical_score:
