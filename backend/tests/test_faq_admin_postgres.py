@@ -89,12 +89,16 @@ def test_admin_faq_lifecycle_is_searchable_and_persists_384_dimension_embeddings
         assert delete_response.status_code == 204, delete_response.text
         faq_id = None
     finally:
-        if faq_id is not None:
-            cleanup_response = httpx.delete(
-                f"{BACKEND_URL}/api/admin/faqs/{faq_id}", timeout=30
-            )
-            assert cleanup_response.status_code == 204, cleanup_response.text
-        if created_id is not None:
-            with Session(engine) as db:
-                assert db.get(FAQ, created_id) is None
-        engine.dispose()
+        try:
+            if faq_id is not None:
+                cleanup_response = httpx.delete(
+                    f"{BACKEND_URL}/api/admin/faqs/{faq_id}", timeout=30
+                )
+                assert cleanup_response.status_code == 204, cleanup_response.text
+        finally:
+            try:
+                if created_id is not None:
+                    with Session(engine) as db:
+                        assert db.get(FAQ, created_id) is None
+            finally:
+                engine.dispose()
