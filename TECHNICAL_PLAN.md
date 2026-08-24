@@ -83,6 +83,13 @@ Bonus почався лише після проходження всіх Core-к
 - Доданий semantic ambiguity guard і regression-тест не дозволяють telescope
   rental помилково збігатися з FAQ про helicopter tours.
 
-## Bonus B5 — not started
+## Bonus B5 — complete
 
-- Інтегрований у власний frontend Playground залишається наступним етапом.
+- Backend безпечно видає короткочасні room-scoped LiveKit tokens.
+- Англомовний Playground в адмінпанелі має Start/End, мікрофон, remote audio,
+  стани з'єднання й агента, активний голос та останню FAQ-відповідь.
+- Повторний старт працює без перезавантаження, а unmount завершує сесію.
+- Component tests перевіряють UI, token/start/end/error flow і regression для
+  передчасного disconnect під час rerender.
+- Ручна браузерна перевірка підтвердила успішну голосову сесію після виправлення
+  session lifecycle.

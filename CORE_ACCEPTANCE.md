@@ -37,7 +37,15 @@
 | VX-4: прослуховування preview | Пройдено (manual) | Preview/Stop preview, однаковий текст і автоматична зупинка попереднього audio |
 | NF-3: desktop admin usability | Пройдено (manual) | Responsive React layout, component tests, browser QA і user review Voice Studio |
 | NF-5: voice change without restart | Пройдено (manual) | PostgreSQL activation + нова LiveKit сесія Sofia без перезапуску Docker |
-| PG-1-PG-5: browser, mic, audio, status, Start/End | Пройдено (manual) | LiveKit Agents Playground |
+| AP-13: Playground у власній адмінпанелі | Пройдено | React `Playground`, navigation/component tests і production build |
+| AP-14: активний голос та остання FAQ | Пройдено | `/api/voice/active`, LiveKit session messages і component tests |
+| AP-15: повна голосова розмова | Пройдено (manual) | Користувач підтвердив успішну сесію у вбудованому Playground після lifecycle fix |
+| AP-16: чіткий Test Mode | Пройдено | Заголовки `Playground` і `Test Mode`; component test |
+| PG-1: запуск у браузері | Пройдено (manual) | `http://localhost:3000` → Playground |
+| PG-2: доступ до мікрофона | Пройдено (manual) | Browser permission і успішний voice input |
+| PG-3: відтворення відповіді | Пройдено (manual) | LiveKit remote audio у вбудованій сесії |
+| PG-4: візуальні стани | Пройдено | Disconnected/Connecting/Listening/Thinking/Speaking UI та component tests |
+| PG-5: Start/End | Пройдено (manual) | Start, End, cleanup, reconnect tests і ручна повторна сесія |
 | NF-1: розмовна голосова відповідь | Пройдено (manual) | Голосові сценарії; окремий latency benchmark PRD не задає |
 | NF-2: локальний Docker-запуск | Пройдено | `docker compose up --build`; усі сервіси healthy |
 | NF-4: преміальний тон | Пройдено (manual) | Prompt і голосова перевірка |
@@ -76,7 +84,20 @@ Invoke-RestMethod http://localhost:8000/health
 - Фінальні suites: Backend `49 passed, 3 skipped`, Agent `12 passed`, Admin
   `9 passed`; PostgreSQL voice concurrency `1 passed`; усі сервіси healthy.
 
+## Bonus B5 final acceptance — 24 August 2026
+
+- Вбудований англомовний Playground доступний з навігації адмінпанелі.
+- Backend створює 10-хвилинний token для окремої кімнати без передачі secret у
+  frontend; unit-тести перевіряють claims і помилки конфігурації.
+- React-тести перевіряють Start/End, media UI, active voice, error/retry, cleanup
+  та regression: rerender більше не завершує сесію під час підключення.
+- Користувач вручну підтвердив, що після виправлення lifecycle голосова сесія
+  успішно запускається і агент відповідає.
+- Реальні browser media та provider calls залежать від локальних credentials,
+  дозволу мікрофона, інтернету й LiveKit Cloud; unit-тести самі по собі не можуть
+  довести роботу цих зовнішніх складових.
+
 ## Межа приймання
 
-Матриця охоплює Core і Bonus B1–B4. B5 Integrated Playground ще не
-реалізований і не змінює статус завершеного Core або B1–B4.
+Матриця охоплює завершені Core і Bonus B1–B5. Бронювання, платежі,
+авторизація та production deployment залишаються поза межами завдання.

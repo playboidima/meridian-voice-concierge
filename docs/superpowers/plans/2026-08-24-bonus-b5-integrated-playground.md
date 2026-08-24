@@ -146,11 +146,11 @@ git commit -m "feat: integrate LiveKit admin playground"
 - Consumes: completed token endpoint and Playground UI.
 - Produces: reproducible evaluator instructions and recorded AP-13 through AP-16 acceptance evidence.
 
-- [ ] **Step 1: Document setup and operation**
+- [x] **Step 1: Document setup and operation**
 
 Document `http://localhost:3000` → `Playground`, microphone permission, Start/End, expected states, active-voice behavior, reconnect, and the fact that tokens are server-generated and short-lived. Add troubleshooting for missing LiveKit variables, microphone denial, autoplay blocking, and an unavailable agent.
 
-- [ ] **Step 2: Run all automated verification**
+- [x] **Step 2: Run all automated verification**
 
 Run: `docker compose up -d --build`
 
@@ -164,7 +164,7 @@ Run: `docker compose ps`
 
 Expected: all suites PASS; `db`, `backend`, `agent`, and `admin` are running and healthy.
 
-- [ ] **Step 3: Run repository safety checks**
+- [x] **Step 3: Run repository safety checks**
 
 Run: `git check-ignore -v .env`
 
@@ -174,15 +174,15 @@ Run: `git diff --check`
 
 Expected: `.env` is ignored, `git ls-files .env` prints nothing, and `git diff --check` prints nothing.
 
-- [ ] **Step 4: Perform the manual browser gate**
+- [x] **Step 4: Perform the manual browser gate**
 
 In Chrome or Edge, open `http://localhost:3000`, choose Playground, grant microphone access, start a conversation, ask one known FAQ and confirm the correct spoken response, ask one unknown question and confirm the safe fallback plus queue record, verify visible Listening/Thinking/Speaking transitions, end the call, start a second call, and confirm the active voice is used. Repeat once with microphone permission denied and confirm the retryable English error.
 
-- [ ] **Step 5: Record acceptance status**
+- [x] **Step 5: Record acceptance status**
 
 Mark AP-13 through AP-16 and PG-1 through PG-5 with automated/manual evidence. State explicitly that browser media and real provider calls require valid local credentials and cannot be fully proven by unit tests alone.
 
-- [ ] **Step 6: Commit B5 documentation**
+- [x] **Step 6: Commit B5 documentation**
 
 ```bash
 git add README.md TECHNICAL_DECISIONS.md TECHNICAL_PLAN.md CORE_ACCEPTANCE.md
