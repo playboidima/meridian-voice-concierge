@@ -87,39 +87,39 @@ git commit -m "feat: issue LiveKit playground tokens"
 - Consumes: `POST /api/livekit/token`, `GET /api/voice/active`, and agent name `meridian-concierge`.
 - Produces: a `Playground` admin view with Start, End, microphone, audio rendering, active voice, and lifecycle status.
 
-- [ ] **Step 1: Install official LiveKit browser packages**
+- [x] **Step 1: Install official LiveKit browser packages**
 
 Run from `admin`: `pnpm add @livekit/components-react @livekit/components-styles livekit-client`
 
 Expected: `package.json` and `pnpm-lock.yaml` contain the three direct dependencies.
 
-- [ ] **Step 2: Write failing component tests**
+- [x] **Step 2: Write failing component tests**
 
 Mock the LiveKit session boundary and test that the component renders `Playground`, `Test Mode`, `Disconnected`, and the active voice; Start invokes `session.start()` and shows connection progress; End invokes `session.end()`; a rejected Start renders an English retryable error; unmount invokes cleanup. Extend the app navigation test to require the fourth `Playground` item.
 
-- [ ] **Step 3: Run the focused frontend tests and confirm failure**
+- [x] **Step 3: Run the focused frontend tests and confirm failure**
 
 Run: `docker compose run --rm admin pnpm test -- --run src/Playground.test.jsx src/App.test.jsx`
 
 Expected: FAIL because the view and component do not exist.
 
-- [ ] **Step 4: Implement the session boundary**
+- [x] **Step 4: Implement the session boundary**
 
 Create a module-level `TokenSource.endpoint('/api/livekit/token')`. Use `useSession(tokenSource, { agentName: 'meridian-concierge' })` and `SessionProvider`. Keep session start user-initiated, call `session.end()` on End and unmount, and use LiveKit agent/session state to map internal values to the six approved English display states.
 
-- [ ] **Step 5: Implement voice audio and controls**
+- [x] **Step 5: Implement voice audio and controls**
 
 Render `RoomAudioRenderer`, an audio-unlock control for autoplay restrictions, a microphone toggle, Start/End controls, and an agent audio visualizer. Disable impossible actions during transitions and keep camera/screen-share controls absent.
 
-- [ ] **Step 6: Integrate the view into the admin shell**
+- [x] **Step 6: Integrate the view into the admin shell**
 
 Add `Playground` to the sidebar and page heading switch. Fetch `/api/voice/active` on entry and show `Testing with <name>`. Keep all copy English and preserve the FAQ, Queue, and Voice Studio behavior.
 
-- [ ] **Step 7: Style desktop and narrow layouts**
+- [x] **Step 7: Style desktop and narrow layouts**
 
 Add styles consistent with the existing Meridian cards: visible Test Mode badge, central status/visualizer, readable controls, clear error panel, and usable layout down to 768px width. Do not create a new global design system.
 
-- [ ] **Step 8: Run frontend tests and production build**
+- [x] **Step 8: Run frontend tests and production build**
 
 Run: `docker compose run --rm admin pnpm test -- --run`
 
@@ -127,7 +127,7 @@ Run: `docker compose build admin`
 
 Expected: all frontend tests PASS and Vite production build succeeds.
 
-- [ ] **Step 9: Commit the integrated interface**
+- [x] **Step 9: Commit the integrated interface**
 
 ```bash
 git add admin

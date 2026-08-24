@@ -40,4 +40,5 @@ export const faqApi = {
   activateVoice: (id) =>
     request(`/api/admin/voices/${id}/activate`, { method: "POST" }),
   voicePreviewUrl: (id) => `/api/admin/voices/${id}/preview`,
+  activeVoice: () => request("/api/voice/active"),
 };

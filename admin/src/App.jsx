@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { faqApi } from "./api";
+import Playground from "./Playground";
 
 const emptyFaq = { question: "", answer: "", category: "" };
 const emptyConvert = { answer: "", category: "" };
@@ -196,11 +197,12 @@ export default function App() {
           <button className={view === "faqs" ? "nav-item active" : "nav-item"} onClick={() => changeView("faqs")}>FAQ Library</button>
           <button className={view === "unanswered" ? "nav-item active" : "nav-item"} onClick={() => changeView("unanswered")}>Unanswered Queue</button>
           <button className={view === "voices" ? "nav-item active" : "nav-item"} onClick={() => changeView("voices")}>Voice Studio</button>
+          <button className={view === "playground" ? "nav-item active" : "nav-item"} onClick={() => changeView("playground")}>Playground</button>
         </nav>
         <div className="sidebar-note"><span className="status-dot" />Backend connected</div>
       </aside>
       <main>
-        <header className="page-header"><div><span className="eyebrow">The Meridian Casino & Resort</span><h1>{view === "faqs" ? "FAQ Library" : view === "unanswered" ? "Unanswered Queue" : "Voice Studio"}</h1><p>{view === "faqs" ? "Keep every guest answer accurate and searchable." : view === "unanswered" ? "Turn recurring guest questions into trusted answers." : "Choose the voice guests hear in every new conversation."}</p></div>{view === "faqs" && <button className="button primary" onClick={() => setFaqDraft(null)}>Add FAQ</button>}</header>
+        <header className="page-header"><div><span className="eyebrow">The Meridian Casino & Resort</span><h1>{view === "faqs" ? "FAQ Library" : view === "unanswered" ? "Unanswered Queue" : view === "voices" ? "Voice Studio" : "Playground"}</h1><p>{view === "faqs" ? "Keep every guest answer accurate and searchable." : view === "unanswered" ? "Turn recurring guest questions into trusted answers." : view === "voices" ? "Choose the voice guests hear in every new conversation." : "Run a complete voice test before sharing changes with guests."}</p></div>{view === "faqs" && <button className="button primary" onClick={() => setFaqDraft(null)}>Add FAQ</button>}</header>
         {error && <div className="message error" role="alert">{error}</div>}
         {notice && <div className="message success" role="status">{notice}</div>}
         {view === "faqs" ? (
@@ -210,8 +212,10 @@ export default function App() {
           </section>
         ) : view === "unanswered" ? (
           <section>{loading ? <p className="empty">Loading queue…</p> : unanswered.length === 0 ? <p className="empty">The unanswered queue is clear.</p> : <div className="queue">{unanswered.map((item) => <article className="queue-row" key={item.id}><div className="frequency"><strong>{item.frequency}</strong><span>times asked</span></div><div className="queue-copy"><h2>{item.original_question}</h2><p>Last seen {formatDate(item.last_seen_at)}</p></div><div className="card-actions"><button className="button secondary" onClick={() => dismiss(item)}>Dismiss</button><button className="button primary" onClick={() => setConvertItem(item)}>Convert</button></div></article>)}</div>}</section>
-        ) : (
+        ) : view === "voices" ? (
           <section>{loading ? <p className="empty">Loading voices…</p> : voices.length === 0 ? <p className="empty">No concierge voices are available.</p> : <div className="voice-grid">{voices.map((voice) => <article className={voice.is_active ? "voice-card active-voice" : "voice-card"} key={voice.id}><div className="voice-card-top"><div className="voice-avatar" aria-hidden="true">{voice.name[0]}</div>{voice.is_active && <span className="active-badge">Active voice</span>}</div><h2>{voice.name}</h2><p>{voice.description}</p><div className="waveform" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /></div><div className="voice-actions"><button className="button secondary preview-button" type="button" aria-label={`${previewingVoiceId === voice.id ? "Stop preview" : "Preview"} ${voice.name}`} onClick={() => togglePreview(voice)}>{previewingVoiceId === voice.id ? "■ Stop preview" : "▶ Preview"}</button><button className="button primary" type="button" disabled={voice.is_active || activatingVoice} onClick={() => selectVoice(voice)}>{voice.is_active ? "Currently active" : "Set active"}</button></div></article>)}</div>}</section>
+        ) : (
+          <Playground />
         )}
       </main>
       {faqDraft !== undefined && <FaqForm initial={faqDraft || undefined} onCancel={() => setFaqDraft(undefined)} onSave={saveFaq} />}

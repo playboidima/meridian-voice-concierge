@@ -34,6 +34,12 @@ describe("Meridian admin", () => {
     vi.stubGlobal("fetch", vi.fn(() => jsonResponse([faq])));
   });
 
+  it("includes the integrated Playground in admin navigation", async () => {
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Playground" })).toBeInTheDocument();
+  });
+
   it("loads FAQs and filters them locally", async () => {
     const user = userEvent.setup();
     render(<App />);
