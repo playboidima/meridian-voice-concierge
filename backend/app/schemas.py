@@ -46,6 +46,13 @@ class UnansweredResponse(BaseModel):
     status: str
 
 
+class UnansweredConvertWrite(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    answer: str = Field(min_length=2)
+    category: str = Field(min_length=2, max_length=100)
+
+
 class HealthResponse(BaseModel):
     status: str
     database: str

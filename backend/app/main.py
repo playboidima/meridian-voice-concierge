@@ -11,6 +11,7 @@ from app.schemas import (
     FAQSearchResponse,
     HealthResponse,
     QuestionRequest,
+    UnansweredConvertWrite,
     UnansweredResponse,
 )
 from app.services.faq_search import find_best_faq
@@ -23,6 +24,11 @@ from app.services.faq_admin import (
 )
 from app.services.text import normalize_question
 from app.services.unanswered import record_unanswered_question
+from app.services.unanswered_admin import (
+    UnansweredNotFoundError,
+    convert_unanswered_to_faq,
+    dismiss_unanswered,
+)
 
 app = FastAPI(title="Meridian Voice Concierge API", version="0.1.0")
 
@@ -68,6 +74,58 @@ def delete_admin_faq(faq_id: int, db: Session = Depends(get_db)) -> None:
     try:
         delete_faq(db, faq_id)
     except FAQNotFoundError as error:
+        raise faq_admin_http_error(error) from error
+
+
+def unanswered_not_found_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Unanswered question not found",
+    )
+
+
+@app.get("/api/admin/unanswered", response_model=list[UnansweredResponse])
+def list_admin_unanswered(db: Session = Depends(get_db)) -> list[UnansweredQuestion]:
+    statement = (
+        select(UnansweredQuestion)
+        .where(UnansweredQuestion.status == "open")
+        .order_by(
+            UnansweredQuestion.frequency.desc(),
+            UnansweredQuestion.last_seen_at.desc(),
+            UnansweredQuestion.id,
+        )
+    )
+    return list(db.scalars(statement))
+
+
+@app.post(
+    "/api/admin/unanswered/{unanswered_id}/dismiss",
+    response_model=UnansweredResponse,
+)
+def dismiss_admin_unanswered(
+    unanswered_id: int, db: Session = Depends(get_db)
+) -> UnansweredQuestion:
+    try:
+        return dismiss_unanswered(db, unanswered_id)
+    except UnansweredNotFoundError as error:
+        raise unanswered_not_found_error() from error
+
+
+@app.post(
+    "/api/admin/unanswered/{unanswered_id}/convert",
+    response_model=FAQAdminResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def convert_admin_unanswered(
+    unanswered_id: int,
+    payload: UnansweredConvertWrite,
+    db: Session = Depends(get_db),
+) -> FAQ:
+    try:
+        return convert_unanswered_to_faq(db, unanswered_id, payload)
+    except UnansweredNotFoundError as error:
+        raise unanswered_not_found_error() from error
+    except FAQConflictError as error:
         raise faq_admin_http_error(error) from error
 
 

@@ -206,6 +206,37 @@ Invoke-WebRequest -Method Delete `
   500 символів. Відповідь містить стандартний масив FastAPI `detail` з
   описом полів, які треба виправити.
 
+### Черга запитань без відповіді (Bonus B2)
+
+Переглянути відкриту чергу, відсортовану від найчастіших запитань:
+
+```powershell
+Invoke-RestMethod -Method Get `
+  -Uri "http://localhost:8000/api/admin/unanswered"
+```
+
+Перетворити запитання на FAQ (підставте його фактичний `id`):
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8000/api/admin/unanswered/1/convert" `
+  -ContentType "application/json" `
+  -Body '{"answer":"Airport transfers can be arranged through the concierge.","category":"hotel"}'
+```
+
+Успішний convert повертає `201 Created`, створює пошуковий embedding і змінює
+статус вихідного запитання на `converted`. Відхилити нерелевантне запитання:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8000/api/admin/unanswered/1/dismiss"
+```
+
+Dismiss повертає запис зі статусом `dismissed`. Оброблені записи більше не
+показуються у відкритій черзі. Відсутній або вже оброблений запис повертає
+`404`; спроба створити FAQ з наявним питанням повертає `409` і залишає запис
+черги відкритим.
+
 ## Корисні команди
 
 ```powershell

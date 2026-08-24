@@ -23,6 +23,10 @@
 | AP-2: створення FAQ з пошуковим embedding | Пройдено | `POST /api/admin/faqs`; unit-тести перевіряють `201`, trimming, `422` і `409`, а opt-in PostgreSQL test перевіряє 384-вимірний embedding і пошук створеного FAQ |
 | AP-3: оновлення FAQ та пошуку | Пройдено | `PUT /api/admin/faqs/{faq_id}`; unit-тести перевіряють `200`, recompute embedding, `404`, `409` і rollback, а opt-in PostgreSQL test знаходить оновлену відповідь |
 | AP-4: видалення FAQ | Пройдено | `DELETE /api/admin/faqs/{faq_id}`; unit-тест перевіряє `204` без тіла та наступний `404`, а opt-in PostgreSQL lifecycle test видаляє створений FAQ і підтверджує cleanup |
+| AP-5: перегляд черги unknown | Пройдено | `GET /api/admin/unanswered`; API-тест перевіряє лише відкриті записи та порядок за `frequency` |
+| AP-6: відображення frequency | Пройдено | Відповідь черги містить `frequency`, timestamps і status; API-тест перевіряє значення та сортування |
+| AP-7: перетворення unknown на FAQ | Пройдено | `POST /api/admin/unanswered/{id}/convert`; тест перевіряє FAQ, 384-вимірний embedding, статус `converted` і rollback при дублікаті |
+| AP-8: відхилення unknown | Пройдено | `POST /api/admin/unanswered/{id}/dismiss`; тест перевіряє статус `dismissed`, зникнення з відкритої черги та `404` |
 | PG-1-PG-5: browser, mic, audio, status, Start/End | Пройдено (manual) | LiveKit Agents Playground |
 | NF-1: розмовна голосова відповідь | Пройдено (manual) | Голосові сценарії; окремий latency benchmark PRD не задає |
 | NF-2: локальний Docker-запуск | Пройдено | `docker compose up --build`; усі сервіси healthy |
@@ -46,5 +50,5 @@ Invoke-RestMethod http://localhost:8000/health
 
 ## Межа приймання
 
-Матриця охоплює Core і завершений Bonus B1 API для керування FAQ. NF-3, NF-5,
-VX-* та наступні Bonus-етапи не є блокерами здачі основної частини.
+Матриця охоплює Core, Bonus B1 FAQ API та Bonus B2 unanswered queue API.
+NF-3, NF-5, VX-* та наступні Bonus-етапи не є блокерами здачі основної частини.
