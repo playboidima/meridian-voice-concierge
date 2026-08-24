@@ -108,6 +108,104 @@ Invoke-RestMethod -Method Post `
 }
 ```
 
+### Адміністрування FAQ (Bonus B1)
+
+Ці endpoint-и дають змогу керувати записами FAQ без прямого доступу до бази
+даних. Усі приклади нижче можна скопіювати до PowerShell після запуску
+`docker compose up --build -d`. Поля `question`, `answer` і `category` є
+обов'язковими: після обрізання пробілів кожне повинно містити щонайменше два
+символи. API автоматично оновлює пошуковий embedding, тому не передавайте його
+у JSON.
+
+#### `GET /api/admin/faqs` — переглянути FAQ
+
+```powershell
+Invoke-RestMethod -Method Get `
+  -Uri "http://localhost:8000/api/admin/faqs"
+```
+
+Приклад відповіді (масив відсортовано за `id`):
+
+```json
+[
+  {
+    "id": 48,
+    "question": "Is late checkout available?",
+    "answer": "Late checkout is subject to availability.",
+    "category": "hotel",
+    "created_at": "2026-08-24T12:00:00Z",
+    "updated_at": "2026-08-24T12:00:00Z"
+  }
+]
+```
+
+#### `POST /api/admin/faqs` — створити FAQ
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8000/api/admin/faqs" `
+  -ContentType "application/json" `
+  -Body '{"question":"Is late checkout available?","answer":"Late checkout is subject to availability.","category":"hotel"}'
+```
+
+Успішне створення повертає `201 Created` і створений запис:
+
+```json
+{
+  "id": 48,
+  "question": "Is late checkout available?",
+  "answer": "Late checkout is subject to availability.",
+  "category": "hotel",
+  "created_at": "2026-08-24T12:00:00Z",
+  "updated_at": "2026-08-24T12:00:00Z"
+}
+```
+
+#### `PUT /api/admin/faqs/{faq_id}` — оновити FAQ
+
+Підставте фактичний `id` зі створеного або отриманого запису (у прикладі —
+`48`). Запит замінює всі три текстові поля FAQ.
+
+```powershell
+Invoke-RestMethod -Method Put `
+  -Uri "http://localhost:8000/api/admin/faqs/48" `
+  -ContentType "application/json" `
+  -Body '{"question":"Is late checkout available?","answer":"Late checkout is available on request, subject to availability.","category":"hotel"}'
+```
+
+Успішне оновлення повертає `200 OK` і запис з оновленим `updated_at`:
+
+```json
+{
+  "id": 48,
+  "question": "Is late checkout available?",
+  "answer": "Late checkout is available on request, subject to availability.",
+  "category": "hotel",
+  "created_at": "2026-08-24T12:00:00Z",
+  "updated_at": "2026-08-24T12:05:00Z"
+}
+```
+
+#### `DELETE /api/admin/faqs/{faq_id}` — видалити FAQ
+
+```powershell
+Invoke-WebRequest -Method Delete `
+  -Uri "http://localhost:8000/api/admin/faqs/48"
+```
+
+Успішне видалення повертає `204 No Content`, тобто тіло відповіді відсутнє.
+
+#### Помилки адміністрування FAQ
+
+- `404 Not Found` — FAQ з таким `faq_id` не існує. Відповідь:
+  `{"detail":"FAQ not found"}`.
+- `409 Conflict` — `question` уже є в іншому FAQ; дублікати питань не
+  створюються. Відповідь: `{"detail":"FAQ question already exists"}`.
+- `422 Unprocessable Entity` — JSON не відповідає правилам полів, наприклад
+  поле пропущене, після обрізання пробілів закоротке, або `question` довше
+  500 символів. Відповідь містить стандартний масив FastAPI `detail` з
+  описом полів, які треба виправити.
+
 ## Корисні команди
 
 ```powershell
@@ -115,6 +213,7 @@ docker compose config
 docker compose run --rm backend pytest -q
 docker compose run --rm agent pytest -q
 docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_postgres_concurrency.py
+docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_faq_admin_postgres.py
 docker compose down
 docker compose down -v  # також видаляє локальні дані PostgreSQL
 ```
