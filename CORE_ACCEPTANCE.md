@@ -11,11 +11,11 @@
 | VC-4: озвучення знайденої відповіді | Пройдено (manual) | STT-LLM-TTS сесія в Playground |
 | VC-5: fallback і запис unknown | Пройдено | Agent unit-тести, API/DB integration-тест і manual-перевірка |
 | VC-6: теплий професійний тон | Пройдено (manual) | System prompt і голосові сценарії |
-| KB-1: FAQ про комплекс | Пройдено | 47 seed FAQ з розділів 7.1-7.7 |
+| KB-1: FAQ про комплекс | Пройдено | 47 seed FAQ з розділів 7.1-7.7 PRD і 1 погоджений додатковий EV charging FAQ |
 | KB-2: пошук за змістом | Пройдено | FastEmbed + pgvector, unseen paraphrase-тести |
 | KB-3: unknown із timestamp | Пройдено | `first_seen_at`, `last_seen_at` у моделі та міграції |
 | KB-4: frequency unknown | Пройдено | Atomic upsert; 50 паралельних запитів дають frequency 50 |
-| KB-5: початкові дані | Пройдено | Clean-DB перевірка: 47 FAQ, 47 embeddings |
+| KB-5: початкові дані | Пройдено | Clean-DB перевірка PRD: 47 FAQ/embeddings; після погодженого розширення каталог містить 48 FAQ |
 | API-1: FAQ search endpoint | Пройдено | `POST /api/faq/search` та API-тести |
 | API-2: unanswered endpoint | Пройдено | `POST /api/unanswered` та API-тести |
 | API-3: match/no-match контракт | Пройдено | Позитивні й негативні regression-тести |

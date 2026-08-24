@@ -13,13 +13,24 @@ from app.seed_data import LEGACY_SEED_QUESTIONS
 CYRILLIC = re.compile(r"[\u0400-\u04ff]")
 
 
-def test_seed_catalog_contains_47_unique_english_faqs() -> None:
-    assert len(FAQS) == 47
-    assert len({item["question"] for item in FAQS}) == 47
+def test_seed_catalog_contains_48_unique_english_faqs() -> None:
+    assert len(FAQS) == 48
+    assert len({item["question"] for item in FAQS}) == 48
 
     for item in FAQS:
         assert not CYRILLIC.search(item["question"]), item["question"]
         assert not CYRILLIC.search(item["answer"]), item["answer"]
+
+
+def test_seed_catalog_includes_ev_parking_information() -> None:
+    faq = next(
+        item for item in FAQS
+        if item["question"] == "Is parking with electric-vehicle charging available?"
+    )
+
+    assert faq["category"] == "general"
+    assert "self-parking garage" in faq["answer"]
+    assert "subject to availability" in faq["answer"]
 
 
 def test_reconcile_updates_only_exact_legacy_seed_rows_and_preserves_id() -> None:

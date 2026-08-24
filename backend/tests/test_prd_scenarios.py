@@ -84,7 +84,7 @@ def test_typical_paraphrases_route_to_expected_faqs():
 def test_typical_unknown_questions_stay_below_threshold():
     session = populated_session()
     questions = (
-        "Do you have electric vehicle charging?",
+        "Can I rent a telescope?",
         "Do you provide airport transfers?",
         "Do you offer babysitting services?",
         "Can I bring my dog?",
@@ -103,6 +103,7 @@ def test_typical_english_questions_route_without_llm_translation():
         "Can you recommend a good restaurant nearby?": "Carbone",
         "What is included in the Penthouse Suite?": "Penthouse Suite",
         "What discount do guests get on helicopter tours?": "Vegas Nights Aviation",
+        "Do you have a special parking lot for electric cars?": "electric-vehicle charging",
     }
     for question, expected in cases.items():
         faq, score = find_best_faq(session, question)
