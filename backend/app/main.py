@@ -14,11 +14,26 @@ from app.schemas import (
     UnansweredResponse,
 )
 from app.services.faq_search import find_best_faq
-from app.services.faq_admin import FAQConflictError, create_faq
+from app.services.faq_admin import (
+    FAQConflictError,
+    FAQNotFoundError,
+    create_faq,
+    delete_faq,
+    update_faq,
+)
 from app.services.text import normalize_question
 from app.services.unanswered import record_unanswered_question
 
 app = FastAPI(title="Meridian Voice Concierge API", version="0.1.0")
+
+
+def faq_admin_http_error(error: FAQConflictError | FAQNotFoundError) -> HTTPException:
+    if isinstance(error, FAQNotFoundError):
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="FAQ not found")
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="FAQ question already exists",
+    )
 
 
 @app.get("/api/admin/faqs", response_model=list[FAQAdminResponse])
@@ -35,10 +50,25 @@ def create_admin_faq(payload: FAQAdminWrite, db: Session = Depends(get_db)) -> F
     try:
         return create_faq(db, payload)
     except FAQConflictError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="FAQ question already exists",
-        ) from error
+        raise faq_admin_http_error(error) from error
+
+
+@app.put("/api/admin/faqs/{faq_id}", response_model=FAQAdminResponse)
+def update_admin_faq(
+    faq_id: int, payload: FAQAdminWrite, db: Session = Depends(get_db)
+) -> FAQ:
+    try:
+        return update_faq(db, faq_id, payload)
+    except (FAQConflictError, FAQNotFoundError) as error:
+        raise faq_admin_http_error(error) from error
+
+
+@app.delete("/api/admin/faqs/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_admin_faq(faq_id: int, db: Session = Depends(get_db)) -> None:
+    try:
+        delete_faq(db, faq_id)
+    except FAQNotFoundError as error:
+        raise faq_admin_http_error(error) from error
 
 
 @app.get("/health", response_model=HealthResponse)

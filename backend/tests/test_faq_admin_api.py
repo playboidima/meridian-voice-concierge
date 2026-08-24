@@ -73,6 +73,96 @@ def test_admin_create_rejects_duplicate_question(client, monkeypatch):
     assert response.json() == {"detail": "FAQ question already exists"}
 
 
+def test_admin_can_update_faq_with_a_recomputed_persisted_embedding(
+    client, db_session, monkeypatch
+):
+    embedding = [0.75] * 384
+    monkeypatch.setattr("app.services.embeddings.embed_passage", lambda _: embedding)
+
+    faq = db_session.scalar(
+        select(FAQ).where(FAQ.question == "Які правила щодо домашніх тварин?")
+    )
+    assert faq is not None
+
+    response = client.put(
+        f"/api/admin/faqs/{faq.id}",
+        json={
+            "question": "  Are pets allowed?  ",
+            "answer": "  Pets are welcome in designated rooms.  ",
+            "category": "  hotel  ",
+        },
+    )
+
+    assert response.status_code == 200
+    assert set(response.json()) == {
+        "id", "question", "answer", "category", "created_at", "updated_at"
+    }
+    assert response.json()["question"] == "Are pets allowed?"
+    assert response.json()["answer"] == "Pets are welcome in designated rooms."
+    assert response.json()["category"] == "hotel"
+
+    db_session.refresh(faq)
+    assert faq.question == "Are pets allowed?"
+    assert faq.answer == "Pets are welcome in designated rooms."
+    assert faq.category == "hotel"
+    assert faq.embedding == embedding
+
+
+def test_admin_update_returns_not_found_for_a_missing_faq(client):
+    response = client.put(
+        "/api/admin/faqs/9999",
+        json={
+            "question": "Are pets allowed?",
+            "answer": "Pets are welcome in designated rooms.",
+            "category": "hotel",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "FAQ not found"}
+
+
+def test_admin_update_to_duplicate_question_rolls_back_completely(client, db_session, monkeypatch):
+    monkeypatch.setattr("app.services.embeddings.embed_passage", lambda _: [0.75] * 384)
+    faq = db_session.scalar(
+        select(FAQ).where(FAQ.question == "Які правила щодо домашніх тварин?")
+    )
+    assert faq is not None
+    original = (faq.question, faq.answer, faq.category, faq.embedding)
+
+    response = client.put(
+        f"/api/admin/faqs/{faq.id}",
+        json={
+            "question": "Коли працює покерна кімната і які ігри доступні?",
+            "answer": "Changed answer.",
+            "category": "casino",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "FAQ question already exists"}
+    db_session.refresh(faq)
+    assert (faq.question, faq.answer, faq.category, faq.embedding) == original
+
+
+def test_admin_can_delete_faq_and_then_reports_it_missing(client, db_session):
+    faq = db_session.scalar(
+        select(FAQ).where(FAQ.question == "Які правила щодо домашніх тварин?")
+    )
+    assert faq is not None
+
+    response = client.delete(f"/api/admin/faqs/{faq.id}")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert db_session.get(FAQ, faq.id) is None
+
+    second_response = client.delete(f"/api/admin/faqs/{faq.id}")
+
+    assert second_response.status_code == 404
+    assert second_response.json() == {"detail": "FAQ not found"}
+
+
 @pytest.mark.parametrize(
     "payload",
     [
