@@ -1,6 +1,9 @@
 # Meridian Voice Concierge
 
-Core Voice Concierge: Backend API, PostgreSQL, 47 FAQ та окремий голосовий агент LiveKit із STT–LLM–TTS pipeline. Агент відповідає лише за даними FAQ, а невідомі питання записує для подальшого опрацювання.
+Core Voice Concierge: Backend API, PostgreSQL, 47 FAQ та окремий англомовний голосовий агент LiveKit із STT–LLM–TTS pipeline. Агент відповідає лише за даними FAQ, а невідомі питання записує для подальшого опрацювання.
+
+Детальні обґрунтування архітектури наведені в `TECHNICAL_DECISIONS.md`, а
+звірка з обов'язковими критеріями PRD — у `CORE_ACCEPTANCE.md`.
 
 ## Архітектура
 
@@ -9,24 +12,30 @@ LiveKit Agent -> FastAPI -> service пошуку -> PostgreSQL
                          -> unanswered questions
 ```
 
-Пошук зараз локальний і детермінований: текст нормалізується, поширені слова-синоніми зводяться до спільних понять, після чого оцінюється перетин слів і схожість фраз. Якщо оцінка нижча за поріг, API повертає `matched: false`. Це дозволяє працювати без зовнішніх ключів; пізніше реалізацію можна замінити на embeddings без зміни API.
+FAQ-пошук гібридний. Backend створює локальні англійські embeddings моделлю `BAAI/bge-small-en-v1.5`, зберігає їх у PostgreSQL через `pgvector` і виконує cosine similarity search. Сильні точні та перевірені lexical-збіги мають пріоритет, а semantic retrieval обробляє нові природні перефразування. Якщо обидва механізми нижче відповідного порога, API повертає `matched: false`. Embedding-модель працює локально на CPU і не потребує API-ключа.
 
 ## Запуск
 
-1. Скопіюйте `.env.example` у `.env` (для локального демо можна залишити наведені тестові значення PostgreSQL).
-2. Запустіть:
+1. Скопіюйте `.env.example` у `.env`:
 
-```bash
-docker compose up --build
+```powershell
+Copy-Item .env.example .env
 ```
 
-Під час старту Backend автоматично застосує Alembic-міграції та безпечно повторить seed. API буде доступний на `http://localhost:8000`, Swagger — на `http://localhost:8000/docs`.
+2. Додайте до локального `.env` власні `LIVEKIT_URL`, `LIVEKIT_API_KEY` і `LIVEKIT_API_SECRET`. Не додавайте цей файл до Git.
+3. Запустіть:
+
+```powershell
+docker compose up --build -d
+```
+
+Під час першого Docker build завантажується локальна embedding-модель. Backend автоматично застосує Alembic-міграції, увімкне `pgvector` і безпечно повторить seed разом з embeddings. API буде доступний на `http://localhost:8000`, Swagger — на `http://localhost:8000/docs`.
 
 Перевірка:
 
-```bash
-curl http://localhost:8000/health
-docker compose run --rm backend pytest
+```powershell
+Invoke-RestMethod http://localhost:8000/health
+docker compose ps
 ```
 
 ## API
@@ -35,8 +44,8 @@ docker compose run --rm backend pytest
 
 Запит:
 
-```bash
-curl http://localhost:8000/health
+```powershell
+Invoke-RestMethod http://localhost:8000/health
 ```
 
 Відповідь:
@@ -49,10 +58,11 @@ curl http://localhost:8000/health
 
 Запит:
 
-```bash
-curl -X POST http://localhost:8000/api/faq/search \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Покерна кімната зараз відкрита?"}'
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8000/api/faq/search" `
+  -ContentType "application/json" `
+  -Body '{"question":"Is the poker room open right now?"}'
 ```
 
 Приклад успішної відповіді:
@@ -77,10 +87,11 @@ curl -X POST http://localhost:8000/api/faq/search \
 
 Запит:
 
-```bash
-curl -X POST http://localhost:8000/api/unanswered \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Чи можна приїхати із собакою?"}'
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8000/api/unanswered" `
+  -ContentType "application/json" `
+  -Body '{"question":"Are dogs allowed at the hotel?"}'
 ```
 
 Відповідь (повторний нормалізований запит збільшує `frequency`):
@@ -88,8 +99,8 @@ curl -X POST http://localhost:8000/api/unanswered \
 ```json
 {
   "id": 1,
-  "original_question": "Чи можна приїхати із собакою?",
-  "normalized_question": "можна приїхати із собакою",
+  "original_question": "Are dogs allowed at the hotel?",
+  "normalized_question": "dogs allowed hotel",
   "frequency": 1,
   "status": "open",
   "first_seen_at": "2026-08-20T12:00:00Z",
@@ -99,8 +110,11 @@ curl -X POST http://localhost:8000/api/unanswered \
 
 ## Корисні команди
 
-```bash
+```powershell
 docker compose config
+docker compose run --rm backend pytest -q
+docker compose run --rm agent pytest -q
+docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_postgres_concurrency.py
 docker compose down
 docker compose down -v  # також видаляє локальні дані PostgreSQL
 ```
@@ -113,4 +127,30 @@ docker compose down -v  # також видаляє локальні дані Po
 2. Запустіть весь Core: `docker compose up --build`.
 3. У LiveKit Agent Console почніть сесію з агентом `meridian-concierge`.
 
+Агент приймає та озвучує лише англійську мову. Якщо гість говорить іншою мовою, агент просить повторити питання англійською. Внутрішні FAQ зберігаються українською, але гостю озвучується англійський переклад лише перевіреної відповіді.
+
 Моделі можна змінити через `STT_MODEL`, `LLM_MODEL`, `TTS_MODEL` і `TTS_VOICE` без редагування коду. Для локального текстового запуску агента використайте `python -m app.main console` з каталогу `agent`.
+
+## Перевірка чистого запуску
+
+Увага: `down -v` безповоротно видаляє локальну базу та всі записані невідомі питання.
+
+```powershell
+docker compose down -v --remove-orphans
+docker compose up --build -d
+docker compose ps
+docker compose exec db psql -U meridian -d meridian -c "SELECT COUNT(*) FROM faqs;"
+```
+
+Усі три сервіси мають бути `healthy`, а кількість FAQ — `47`.
+
+Команду `docker compose down -v` використовуйте лише коли записані unknown-питання
+більше не потрібні. Для звичайного перезапуску достатньо `docker compose down`,
+який зберігає PostgreSQL volume.
+
+## Відомі обмеження Core
+
+- Голосова сесія потребує інтернету, LiveKit Cloud credentials і доступності LiveKit Inference.
+- Semantic threshold відкалібровано на контрольному наборі Core; перед суттєвим розширенням бази FAQ його потрібно повторно перевірити на позитивних і негативних сценаріях.
+- Частота невідомих питань об'єднується за однаковим нормалізованим текстом; різні за формулюванням питання про одну тему можуть залишитися окремими записами.
+- Бронювання, оплата, авторизація, React-адмінпанель і бонусні функції не входять до поточного Core.
