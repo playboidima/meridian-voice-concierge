@@ -21,19 +21,22 @@ load_dotenv()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("meridian.concierge")
 
-SYSTEM_INSTRUCTIONS = """You are Meridian's voice concierge. Always speak and reply in
-English, regardless of the language used by the guest or returned by a tool. Translate
-Ukrainian knowledge-base answers into natural English before replying. Be warm, natural,
-and concise, usually one or two sentences. Do not use Markdown, emoji, or complex
-formatting because every reply is spoken aloud.
+SYSTEM_INSTRUCTIONS = """You are Meridian's English-only voice concierge. Conduct the
+entire guest conversation in English. Never translate a guest question into another
+language before calling a tool. If a guest speaks another language, politely ask them to
+repeat the question in English. Tool data may be stored in Ukrainian; translate only the
+verified answer into natural English before speaking. Be warm, natural, and concise,
+usually one or two sentences. Do not use Markdown, emoji, or complex formatting because
+every reply is spoken aloud.
 
 For every factual question about Meridian, the casino, restaurants, services, events, or
-local recommendations, call search_meridian_faq first. The knowledge base is in Ukrainian,
-so translate the guest's complete question into Ukrainian before passing it to that tool.
-Never invent facts. If the tool does not find a reliable answer, call
-record_unanswered_question exactly once with the guest's original wording and honestly say
-that the information needs to be confirmed with a staff member. Never mention tool names,
-technical fields, or match scores to the guest."""
+local recommendations, call search_meridian_faq first with the guest's original complete
+English wording. Never invent facts. The search tool automatically records a question when
+it finds no reliable answer, using the guest's original wording. If unanswered_recorded is true, honestly say that the question
+was recorded and that the information should be confirmed with a staff member. If recording
+failed, do not claim that it was recorded; simply explain that the information should be
+confirmed with staff. Never mention tool names, technical fields, or match scores to the
+guest."""
 
 
 class MeridianConcierge(Agent):
@@ -43,31 +46,23 @@ class MeridianConcierge(Agent):
 
     @function_tool()
     async def search_meridian_faq(self, context: RunContext, question: str) -> str:
-        """Знайти перевірену відповідь у базі знань Meridian.
+        """Find a verified answer in the Meridian knowledge base.
 
         Args:
-            question: Повне питання гостя, перекладене українською для пошуку в базі знань.
+            question: The guest's complete original question, without translation or paraphrasing.
         """
         try:
-            result = await self.api.search_faq(question)
+            result = await self.api.search_and_record_unknown(question)
         except (httpx.HTTPError, ValueError) as exc:
             logger.warning("FAQ lookup failed: %s", exc)
-            return json.dumps({"matched": False, "reason": "service_unavailable"})
+            return json.dumps(
+                {
+                    "matched": False,
+                    "unanswered_recorded": False,
+                    "reason": "service_unavailable",
+                }
+            )
         return json.dumps(result, ensure_ascii=False)
-
-    @function_tool()
-    async def record_unanswered_question(self, context: RunContext, question: str) -> str:
-        """Записати питання, коли search_meridian_faq не знайшов відповіді.
-
-        Args:
-            question: Оригінальне питання гостя, на яке база знань не відповіла.
-        """
-        try:
-            result = await self.api.record_unanswered(question)
-        except (httpx.HTTPError, ValueError) as exc:
-            logger.warning("Could not record unanswered question: %s", exc)
-            return json.dumps({"recorded": False})
-        return json.dumps({"recorded": True, "id": result.get("id")})
 
 
 server = AgentServer()
@@ -78,7 +73,7 @@ async def meridian_agent(ctx: agents.JobContext) -> None:
     session = AgentSession(
         stt=inference.STT(
             model=os.getenv("STT_MODEL", "deepgram/nova-3"),
-            language=os.getenv("STT_LANGUAGE", "multi"),
+            language=os.getenv("STT_LANGUAGE", "en"),
         ),
         llm=inference.LLM(model=os.getenv("LLM_MODEL", "openai/gpt-4.1-mini")),
         tts=inference.TTS(
