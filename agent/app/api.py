@@ -20,6 +20,16 @@ class ConciergeAPI:
             response.raise_for_status()
             return response.json()
 
+    async def get_active_voice(self) -> dict[str, Any]:
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
+            response = await client.get("/api/voice/active")
+            response.raise_for_status()
+            payload = response.json()
+            provider_voice_id = payload.get("provider_voice_id")
+            if not isinstance(provider_voice_id, str) or not provider_voice_id.strip():
+                raise ValueError("Invalid active voice response")
+            return payload
+
     async def search_and_record_unknown(self, question: str) -> dict[str, Any]:
         """Search once and automatically record a no-match with the original wording."""
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
