@@ -28,7 +28,7 @@ def test_four_known_prd_scenarios_match_expected_faqs():
     for question, expected in cases.items():
         faq, score = find_best_faq(session, question)
         assert faq is not None
-        assert score >= 0.35
+        assert score >= 0.35, question
         assert expected.casefold() in f"{faq.question} {faq.answer}".casefold()
 
 
@@ -77,7 +77,7 @@ def test_typical_paraphrases_route_to_expected_faqs():
     for question, expected in cases.items():
         faq, score = find_best_faq(session, question)
         assert faq is not None
-        assert score >= 0.35
+        assert score >= 0.35, question
         assert expected.casefold() in faq.question.casefold()
 
 

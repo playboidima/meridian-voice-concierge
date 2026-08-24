@@ -83,3 +83,14 @@ def test_all_five_prd_conversation_scenarios_in_english(
         "Can I bring my dog to the hotel?",
     )
     assert unknown_score < MATCH_THRESHOLD
+
+
+def test_ambiguous_telescope_rental_question_does_not_match_helicopter_tours(
+    populated_session: Session,
+) -> None:
+    _, score = find_best_faq(
+        populated_session,
+        "Do you offer telescope rentals at The Meridian?",
+    )
+
+    assert score < MATCH_THRESHOLD
