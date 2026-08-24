@@ -24,7 +24,7 @@ vi.mock("@livekit/components-react", () => ({
   StartAudio: ({ label }) => <button>{label}</button>,
   TrackToggle: ({ children }) => <button>{children}</button>,
   useAgent: () => livekit.agent,
-  useSession: () => livekit.session,
+  useSession: () => ({ ...livekit.session }),
 }));
 
 import Playground from "./Playground";
@@ -58,12 +58,14 @@ describe("Integrated playground", () => {
 
   it("starts with microphone audio and can end the session", async () => {
     const user = userEvent.setup();
-    render(<Playground />);
+    const { rerender } = render(<Playground />);
 
     await user.click(screen.getByRole("button", { name: "Start conversation" }));
     expect(livekit.session.start).toHaveBeenCalledWith({
       tracks: { microphone: { enabled: true } },
     });
+    rerender(<Playground />);
+    expect(livekit.session.end).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "End conversation" }));
     expect(livekit.session.end).toHaveBeenCalled();
   });

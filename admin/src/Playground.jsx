@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BarVisualizer,
   RoomAudioRenderer,
@@ -30,6 +30,8 @@ function PlaygroundPanel({ session }) {
   const [voiceError, setVoiceError] = useState("");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const endSessionRef = useRef(session.end);
+  endSessionRef.current = session.end;
   const state = displayState(session, agent.state, starting, error);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ function PlaygroundPanel({ session }) {
     return () => { current = false; };
   }, []);
 
-  useEffect(() => () => { void session.end(); }, [session]);
+  useEffect(() => () => { void endSessionRef.current(); }, []);
 
   async function startConversation() {
     setError("");
