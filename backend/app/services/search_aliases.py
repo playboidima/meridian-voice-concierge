@@ -2,6 +2,11 @@ from app.seed_data import ENGLISH_TO_LEGACY_QUESTIONS
 
 
 FAQ_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
+    "Is parking with electric-vehicle charging available?": (
+        "Do you have a special parking lot for electric cars?",
+        "Do you have electric vehicle charging?",
+        "Are EV charging stations available?",
+    ),
     "Де розташований The Meridian?": (
         "Where is the Meridian Casino and Resort located?",
     ),

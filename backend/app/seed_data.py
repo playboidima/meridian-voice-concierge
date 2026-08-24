@@ -46,6 +46,7 @@ FAQS = [
     {"category": "partners", "question": "What partner offer is available at Top Golf Las Vegas?", "answer": "Top Golf Las Vegas gives Meridian guests one complimentary hour when they book two hours. Guests must show their room key."},
     {"category": "partners", "question": "What partner discount is available at Spa Aquae at JW Marriott?", "answer": "When Meridian Spa is fully booked, Meridian guests receive 10% off treatments at Spa Aquae at JW Marriott when they show their room key."},
     {"category": "partners", "question": "What partner offer is available at Fremont Street Experience?", "answer": "Meridian guests receive a VIP line-skipping SlotZilla pass at Fremont Street Experience when they show their room key."},
+    {"category": "general", "question": "Is parking with electric-vehicle charging available?", "answer": "Yes. Dedicated electric-vehicle parking spaces with charging stations are available in the self-parking garage. Charging is subject to availability."},
 ]
 
 
@@ -63,7 +64,11 @@ LEGACY_SEED_QUESTIONS = (
 )
 
 LEGACY_TO_ENGLISH_QUESTIONS = dict(
-    zip(LEGACY_SEED_QUESTIONS, (item["question"] for item in FAQS), strict=True)
+    zip(
+        LEGACY_SEED_QUESTIONS,
+        (item["question"] for item in FAQS[: len(LEGACY_SEED_QUESTIONS)]),
+        strict=True,
+    )
 )
 ENGLISH_TO_LEGACY_QUESTIONS = {
     english: legacy for legacy, english in LEGACY_TO_ENGLISH_QUESTIONS.items()

@@ -1,6 +1,6 @@
 # Meridian Voice Concierge
 
-Core Voice Concierge: Backend API, PostgreSQL, 47 FAQ та окремий англомовний голосовий агент LiveKit із STT–LLM–TTS pipeline. Агент відповідає лише за даними FAQ, а невідомі питання записує для подальшого опрацювання.
+Core Voice Concierge: Backend API, PostgreSQL, 48 FAQ та окремий англомовний голосовий агент LiveKit із STT–LLM–TTS pipeline. Каталог містить 47 FAQ із PRD і один погоджений додатковий FAQ про заряджання електромобілів. Агент відповідає лише за даними FAQ, а невідомі питання записує для подальшого опрацювання.
 
 Детальні обґрунтування архітектури наведені в `TECHNICAL_DECISIONS.md`, а
 звірка з обов'язковими критеріями PRD — у `CORE_ACCEPTANCE.md`.
@@ -392,7 +392,7 @@ docker compose ps
 docker compose exec db psql -U meridian -d meridian -c "SELECT COUNT(*) FROM faqs;"
 ```
 
-Усі чотири сервіси мають бути `healthy`, а кількість FAQ — `47`.
+Усі чотири сервіси мають бути `healthy`, а кількість FAQ — `48`.
 
 Команду `docker compose down -v` використовуйте лише коли записані unknown-питання
 більше не потрібні. Для звичайного перезапуску достатньо `docker compose down`,

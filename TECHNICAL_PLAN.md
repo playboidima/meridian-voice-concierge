@@ -4,7 +4,8 @@
 
 - FastAPI Backend із `GET /health`, `POST /api/faq/search` і `POST /api/unanswered`.
 - PostgreSQL у Docker Compose, SQLAlchemy-моделі та Alembic-міграція.
-- Повторно безпечний seed із 47 FAQ з розділів 7.1–7.7 PRD.
+- Повторно безпечний seed із 47 FAQ з розділів 7.1–7.7 PRD та одним
+  погодженим додатковим FAQ про EV charging.
 - Локальний пошук із порогом та стабільним JSON-контрактом.
 - Тести health, валідації, match/no-match, нормалізації, агрегації та сценаріїв PRD.
 
