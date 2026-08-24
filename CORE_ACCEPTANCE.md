@@ -27,7 +27,16 @@
 | AP-6: відображення frequency | Пройдено | Відповідь черги містить `frequency`, timestamps і status; API-тест перевіряє значення та сортування |
 | AP-7: перетворення unknown на FAQ | Пройдено | `POST /api/admin/unanswered/{id}/convert`; тест перевіряє FAQ, 384-вимірний embedding, статус `converted` і rollback при дублікаті |
 | AP-8: відхилення unknown | Пройдено | `POST /api/admin/unanswered/{id}/dismiss`; тест перевіряє статус `dismissed`, зникнення з відкритої черги та `404` |
-| NF-3: desktop admin usability | Готово до manual review | Responsive React layout перевірено автоматичними component tests та browser QA на desktop/narrow viewport |
+| AP-9: список чотирьох голосів | Пройдено | `GET /api/admin/voices`, API tests і Voice Studio показують James, Sofia, Marcus, Elena в PRD-порядку |
+| AP-10: описи голосів | Пройдено | Фіксований каталог, API literal tests і чотири англомовні картки Voice Studio |
+| AP-11: вибір активного голосу | Пройдено (manual) | Voice Studio переносить єдиний active badge; user-перевірка Sofia без restart |
+| AP-12: preview голосів | Пройдено (manual) | Чотири distinct MP3, asset tests і user listening review |
+| VX-1: чотири PRD-голоси | Пройдено (manual) | James, Sofia, Marcus, Elena з перевіреними LiveKit/Cartesia voice IDs |
+| VX-2: адміністратор обирає голос | Пройдено (manual) | Voice Studio `Set active` і `POST /api/admin/voices/{id}/activate` |
+| VX-3: зміна для нової розмови | Пройдено (manual) | Agent читає `/api/voice/active` на початку job; user-перевірка James → Sofia |
+| VX-4: прослуховування preview | Пройдено (manual) | Preview/Stop preview, однаковий текст і автоматична зупинка попереднього audio |
+| NF-3: desktop admin usability | Пройдено (manual) | Responsive React layout, component tests, browser QA і user review Voice Studio |
+| NF-5: voice change without restart | Пройдено (manual) | PostgreSQL activation + нова LiveKit сесія Sofia без перезапуску Docker |
 | PG-1-PG-5: browser, mic, audio, status, Start/End | Пройдено (manual) | LiveKit Agents Playground |
 | NF-1: розмовна голосова відповідь | Пройдено (manual) | Голосові сценарії; окремий latency benchmark PRD не задає |
 | NF-2: локальний Docker-запуск | Пройдено | `docker compose up --build`; усі сервіси healthy |
@@ -44,12 +53,30 @@ docker compose up --build -d
 docker compose ps
 docker compose run --rm backend pytest -q
 docker compose run --rm agent pytest -q
+docker compose build --no-cache admin
+docker compose exec -T backend pytest -q tests/test_voice_admin_postgres.py
+docker compose exec -T db psql -U meridian -d meridian -c "SELECT COUNT(*) AS voices, COUNT(*) FILTER (WHERE is_active) AS active FROM voice_configs;"
 docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_postgres_concurrency.py
 docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_faq_admin_postgres.py
 Invoke-RestMethod http://localhost:8000/health
 ```
 
+## Bonus B4 final acceptance — 24 August 2026
+
+- Користувач прослухав усі чотири preview у Voice Studio.
+- Marcus активовано, і нова LiveKit-сесія почала розмову голосом Marcus.
+- Elena активовано без перезапуску Docker, і наступна нова сесія почала
+  розмову голосом Elena. PostgreSQL підтвердив Elena як єдиний active row.
+- Відоме питання про poker room повернуло підтверджену відповідь `24/7`.
+- Перша telescope rental перевірка виявила semantic false positive до
+  helicopter tours. Після TDD-виправлення ambiguity margin точний regression
+  повертає `matched: false`; Agent workflow записав unknown з
+  `unanswered_recorded: true`, після чого тестовий запис `id 457` позначено
+  `dismissed`, щоб він не засмічував відкриту чергу.
+- Фінальні suites: Backend `49 passed, 3 skipped`, Agent `12 passed`, Admin
+  `9 passed`; PostgreSQL voice concurrency `1 passed`; усі сервіси healthy.
+
 ## Межа приймання
 
-Матриця охоплює Core, Bonus B1/B2 API та Bonus B3 React admin panel.
-NF-3, NF-5, VX-* та наступні Bonus-етапи не є блокерами здачі основної частини.
+Матриця охоплює Core і Bonus B1–B4. B5 Integrated Playground ще не
+реалізований і не змінює статус завершеного Core або B1–B4.

@@ -50,7 +50,7 @@
 - Додати Core acceptance checklist із доказами автоматичних і ручних перевірок.
 - Перевірити відсутність секретів та виконати фінальну регресію.
 
-Bonus (React-адмінпанель, керування FAQ та голосами) починається лише після проходження всіх Core-критеріїв.
+Bonus почався лише після проходження всіх Core-критеріїв.
 
 ## Bonus B1 — ready for manual review
 
@@ -69,3 +69,20 @@ Bonus (React-адмінпанель, керування FAQ та голосам�
 - Queue підтримує frequency, Convert і підтверджене Dismiss.
 - П'ять component tests запускаються під час Docker build; desktop і narrow
   layouts перевірені в браузері.
+
+## Bonus B4 — complete
+
+- Додано чотири перевірені PRD-голоси та реальні MP3 preview.
+- PostgreSQL і Backend API гарантують рівно один активний голос.
+- Agent читає активний голос для кожної нової LiveKit-сесії без перезапуску.
+- Англомовний Voice Studio відтворює preview та перемикає активний голос.
+- Дев'ять component tests запускаються під час Admin Docker build; desktop і
+  mobile layouts перевірені в браузері без overflow та console errors.
+- Фінальний no-restart acceptance підтвердив Marcus → Elena для нових LiveKit
+  сесій, усі чотири preview, known FAQ та безпечний unknown-flow.
+- Доданий semantic ambiguity guard і regression-тест не дозволяють telescope
+  rental помилково збігатися з FAQ про helicopter tours.
+
+## Bonus B5 — not started
+
+- Інтегрований у власний frontend Playground залишається наступним етапом.

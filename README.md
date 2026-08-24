@@ -15,6 +15,10 @@ Browser -> React Admin (Nginx) -> FastAPI admin API
 
 FAQ-пошук гібридний. Backend створює локальні англійські embeddings моделлю `BAAI/bge-small-en-v1.5`, зберігає їх у PostgreSQL через `pgvector` і виконує cosine similarity search. Сильні точні та перевірені lexical-збіги мають пріоритет, а semantic retrieval обробляє нові природні перефразування. Якщо обидва механізми нижче відповідного порога, API повертає `matched: false`. Embedding-модель працює локально на CPU і не потребує API-ключа.
 
+Для semantic результату також перевіряється відрив від другого кандидата. Якщо
+два FAQ мають майже однакову оцінку, результат вважається неоднозначним і
+повертається `matched: false`, щоб Agent не озвучував випадковий близький факт.
+
 ## Запуск
 
 1. Скопіюйте `.env.example` у `.env`:
@@ -244,9 +248,11 @@ Dismiss повертає запис зі статусом `dismissed`. Обро�
 
 - **FAQ Library**: пошук, додавання, редагування та видалення FAQ.
 - **Unanswered Queue**: частота невідомих запитань, Convert і Dismiss.
+- **Voice Studio**: чотири голоси, прослуховування preview та вибір активного
+  голосу для нових розмов.
 
 Nginx усередині `admin` проксіює `/api` до Backend, тому frontend не містить
-ключів або окремої адреси API. Production build автоматично запускає 5
+ключів або окремої адреси API. Production build автоматично запускає 9
 компонентних тестів перед створенням статичних файлів. Окрема перевірка:
 
 ```powershell
@@ -255,7 +261,68 @@ Invoke-WebRequest http://localhost:3000/health
 Invoke-RestMethod http://localhost:3000/api/admin/faqs
 ```
 
-Налаштування голосів та інтегрований Playground до B3 не входять.
+Інтегрований Playground до B4 не входить і залишається окремим етапом B5.
+
+## Налаштування голосу (Bonus B4)
+
+Voice Studio доступний на `http://localhost:3000`. Каталог фіксований вимогами
+PRD і не потребує окремого Cartesia API-ключа:
+
+- **James** — mature, warm British male; professional and refined;
+- **Sofia** — friendly, elegant female with a light European accent;
+- **Marcus** — confident, energetic, modern American male;
+- **Elena** — calm, reassuring, clear American female.
+
+Кнопка **Preview** відтворює однакове коротке речення попередньо згенерованим
+MP3. Preview-файли зберігаються в репозиторії, не містять credentials і
+віддаються Backend без runtime TTS-виклику. **Set active** змінює голос без
+перезапуску сервісів. Нова настройка застосовується лише до нових LiveKit
+сесій; уже відкрита розмова зберігає свій голос до завершення.
+
+Переглянути каталог:
+
+```powershell
+Invoke-RestMethod "http://localhost:8000/api/admin/voices"
+```
+
+Активувати голос, використовуючи його фактичний `id`:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8000/api/admin/voices/3/activate"
+```
+
+Приклад відповіді браузерного API — без provider voice ID:
+
+```json
+{
+  "id": 3,
+  "name": "Marcus",
+  "description": "Confident, energetic, modern American male.",
+  "is_active": true,
+  "preview_url": "/api/admin/voices/3/preview",
+  "updated_at": "2026-08-24T12:00:00Z"
+}
+```
+
+Agent отримує runtime-конфігурацію окремим внутрішнім маршрутом:
+
+```powershell
+Invoke-RestMethod "http://localhost:8000/api/voice/active"
+```
+
+```json
+{
+  "name": "Marcus",
+  "provider_voice_id": "a167e0f3-df7e-4d52-a9c3-f949145efdab",
+  "updated_at": "2026-08-24T12:00:00Z"
+}
+```
+
+Якщо Backend тимчасово недоступний на початку нової сесії, Agent використовує
+локальний `TTS_VOICE` з `.env` як fallback. Інтегрований у власний frontend
+Playground не реалізований у B4; для голосової перевірки використовується
+LiveKit Agents Playground.
 
 ## Корисні команди
 
@@ -264,6 +331,7 @@ docker compose config
 docker compose run --rm backend pytest -q
 docker compose run --rm agent pytest -q
 docker compose build admin
+docker compose exec -T db psql -U meridian -d meridian -c "SELECT name, is_active FROM voice_configs ORDER BY id;"
 docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_postgres_concurrency.py
 docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_faq_admin_postgres.py
 docker compose down
@@ -280,7 +348,11 @@ docker compose down -v  # також видаляє локальні дані Po
 
 Агент приймає та озвучує лише англійську мову. Якщо гість говорить іншою мовою, агент просить повторити питання англійською. Вбудовані FAQ та весь контент React-адмінпанелі зберігаються і відображаються англійською.
 
-Моделі можна змінити через `STT_MODEL`, `LLM_MODEL`, `TTS_MODEL` і `TTS_VOICE` без редагування коду. Для локального текстового запуску агента використайте `python -m app.main console` з каталогу `agent`.
+Моделі можна змінити через `STT_MODEL`, `LLM_MODEL` і `TTS_MODEL` без
+редагування коду. `TTS_VOICE` тепер є лише локальним fallback: за нормальної
+роботи активний голос читається з Backend для кожної нової сесії. Для
+локального текстового запуску агента використайте `python -m app.main console`
+з каталогу `agent`.
 
 ## Перевірка чистого запуску
 
@@ -304,4 +376,5 @@ docker compose exec db psql -U meridian -d meridian -c "SELECT COUNT(*) FROM faq
 - Голосова сесія потребує інтернету, LiveKit Cloud credentials і доступності LiveKit Inference.
 - Semantic threshold відкалібровано на контрольному наборі Core; перед суттєвим розширенням бази FAQ його потрібно повторно перевірити на позитивних і негативних сценаріях.
 - Частота невідомих питань об'єднується за однаковим нормалізованим текстом; різні за формулюванням питання про одну тему можуть залишитися окремими записами.
-- Бронювання, оплата й авторизація не входять до завдання; налаштування голосів та інтегрований Playground залишаються наступними Bonus-етапами.
+- Бронювання, оплата й авторизація не входять до завдання; інтегрований
+  Playground залишається наступним Bonus-етапом B5.
