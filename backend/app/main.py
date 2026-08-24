@@ -1,16 +1,28 @@
 from fastapi import Depends, FastAPI
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.models import UnansweredQuestion
-from app.schemas import FAQSearchResponse, HealthResponse, QuestionRequest, UnansweredResponse
+from app.models import FAQ, UnansweredQuestion
+from app.schemas import (
+    FAQAdminResponse,
+    FAQAdminWrite,
+    FAQSearchResponse,
+    HealthResponse,
+    QuestionRequest,
+    UnansweredResponse,
+)
 from app.services.faq_search import find_best_faq
 from app.services.text import normalize_question
 from app.services.unanswered import record_unanswered_question
 
 app = FastAPI(title="Meridian Voice Concierge API", version="0.1.0")
+
+
+@app.get("/api/admin/faqs", response_model=list[FAQAdminResponse])
+def list_admin_faqs(db: Session = Depends(get_db)) -> list[FAQ]:
+    return list(db.scalars(select(FAQ).order_by(FAQ.id)))
 
 
 @app.get("/health", response_model=HealthResponse)
