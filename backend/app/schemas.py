@@ -75,3 +75,17 @@ class ActiveVoiceResponse(BaseModel):
     name: str
     provider_voice_id: str
     updated_at: datetime
+
+
+class LiveKitTokenRequest(BaseModel):
+    room_name: str | None = None
+    participant_identity: str | None = None
+    participant_name: str | None = None
+    participant_metadata: str | None = None
+    participant_attributes: dict[str, str] | None = None
+    room_config: dict | None = None
+
+
+class LiveKitTokenResponse(BaseModel):
+    server_url: str
+    participant_token: str

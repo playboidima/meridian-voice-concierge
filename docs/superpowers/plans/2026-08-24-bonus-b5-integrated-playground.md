@@ -36,25 +36,25 @@
 - Consumes: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and `AGENT_NAME` environment variables.
 - Produces: `POST /api/livekit/token` accepting LiveKit's standard token-source JSON fields and returning HTTP 201 with `{ "server_url": string, "participant_token": string }`.
 
-- [ ] **Step 1: Write failing API tests**
+- [x] **Step 1: Write failing API tests**
 
 Add tests that override token settings and assert: missing credentials return HTTP 503 without naming secret values; configured requests return HTTP 201; two empty requests create different room/participant identities; supplied `room_config` is retained for agent dispatch; decoded grants allow join/publish/subscribe only in the generated room and expire in at most 10 minutes.
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `docker compose run --rm backend pytest tests/test_livekit_token_api.py -q`
 
 Expected: FAIL because `/api/livekit/token` does not exist.
 
-- [ ] **Step 3: Add the minimal token service and endpoint**
+- [x] **Step 3: Add the minimal token service and endpoint**
 
 Add `livekit-api` to backend dependencies. Define optional token-source request fields in Pydantic, generate `playground-<uuid>` and `tester-<uuid>` defaults, build an `api.AccessToken` with a 10-minute TTL and `VideoGrants(room_join=True, room=<room>, can_publish=True, can_subscribe=True)`, apply `room_config` when supplied, and return the configured server URL plus JWT. Raise HTTP 503 when server credentials are incomplete.
 
-- [ ] **Step 4: Pass LiveKit configuration through Compose**
+- [x] **Step 4: Pass LiveKit configuration through Compose**
 
 Add the four LiveKit variables to the backend service environment using the same `.env` values already passed to the agent. Do not add any real values or frontend build arguments.
 
-- [ ] **Step 5: Run focused and backend regression tests**
+- [x] **Step 5: Run focused and backend regression tests**
 
 Run: `docker compose build backend`
 
@@ -64,7 +64,7 @@ Run: `docker compose run --rm backend pytest -q`
 
 Expected: token tests and the complete backend suite PASS.
 
-- [ ] **Step 6: Commit the endpoint**
+- [x] **Step 6: Commit the endpoint**
 
 ```bash
 git add backend docker-compose.yml
@@ -188,4 +188,3 @@ Mark AP-13 through AP-16 and PG-1 through PG-5 with automated/manual evidence. S
 git add README.md TECHNICAL_DECISIONS.md TECHNICAL_PLAN.md CORE_ACCEPTANCE.md
 git commit -m "docs: complete integrated playground"
 ```
-

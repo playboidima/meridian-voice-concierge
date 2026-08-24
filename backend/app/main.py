@@ -19,6 +19,8 @@ from app.schemas import (
     UnansweredResponse,
     ActiveVoiceResponse,
     VoiceAdminResponse,
+    LiveKitTokenRequest,
+    LiveKitTokenResponse,
 )
 from app.services.faq_search import find_best_faq
 from app.services.faq_admin import (
@@ -42,10 +44,29 @@ from app.services.voice_admin import (
     get_active_voice,
     list_voices,
 )
+from app.services.livekit_tokens import (
+    LiveKitNotConfiguredError,
+    create_playground_token,
+)
 
 app = FastAPI(title="Meridian Voice Concierge API", version="0.1.0")
 logger = logging.getLogger(__name__)
 STATIC_DIR = (Path(__file__).parent / "static").resolve()
+
+
+@app.post(
+    "/api/livekit/token",
+    response_model=LiveKitTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def livekit_token(payload: LiveKitTokenRequest) -> LiveKitTokenResponse:
+    try:
+        return create_playground_token(payload)
+    except LiveKitNotConfiguredError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LiveKit is not configured",
+        ) from error
 
 
 def faq_admin_http_error(error: FAQConflictError | FAQNotFoundError) -> HTTPException:
