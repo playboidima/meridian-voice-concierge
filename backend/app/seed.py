@@ -6,6 +6,7 @@ from app.db import engine
 from app.models import FAQ
 from app.seed_data import FAQS, LEGACY_TO_ENGLISH_QUESTIONS
 from app.services.embeddings import embed_passage, faq_embedding_text
+from app.services.voice_admin import reconcile_voice_catalog
 
 
 def reconcile_legacy_seed_rows(db: Session, rows: list[dict]) -> None:
@@ -56,6 +57,7 @@ def seed() -> None:
         )
         db.execute(statement)
         db.commit()
+        reconcile_voice_catalog(db)
     print(f"Seeded {len(FAQS)} Meridian FAQs.")
 
 

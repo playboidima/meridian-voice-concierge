@@ -56,3 +56,22 @@ class UnansweredConvertWrite(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     database: str
+
+
+class VoiceAdminResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: str
+    is_active: bool
+    preview_url: str
+    updated_at: datetime
+
+
+class ActiveVoiceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    provider_voice_id: str
+    updated_at: datetime

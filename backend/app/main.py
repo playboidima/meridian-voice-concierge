@@ -1,10 +1,14 @@
+import logging
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.models import FAQ, UnansweredQuestion
+from app.models import FAQ, UnansweredQuestion, VoiceConfig
 from app.schemas import (
     FAQAdminResponse,
     FAQAdminWrite,
@@ -13,6 +17,8 @@ from app.schemas import (
     QuestionRequest,
     UnansweredConvertWrite,
     UnansweredResponse,
+    ActiveVoiceResponse,
+    VoiceAdminResponse,
 )
 from app.services.faq_search import find_best_faq
 from app.services.faq_admin import (
@@ -29,8 +35,17 @@ from app.services.unanswered_admin import (
     convert_unanswered_to_faq,
     dismiss_unanswered,
 )
+from app.services.voice_admin import (
+    InvalidVoiceStateError,
+    VoiceNotFoundError,
+    activate_voice,
+    get_active_voice,
+    list_voices,
+)
 
 app = FastAPI(title="Meridian Voice Concierge API", version="0.1.0")
+logger = logging.getLogger(__name__)
+STATIC_DIR = (Path(__file__).parent / "static").resolve()
 
 
 def faq_admin_http_error(error: FAQConflictError | FAQNotFoundError) -> HTTPException:
@@ -127,6 +142,59 @@ def convert_admin_unanswered(
         raise unanswered_not_found_error() from error
     except FAQConflictError as error:
         raise faq_admin_http_error(error) from error
+
+
+def voice_not_found_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Voice not found",
+    )
+
+
+@app.get("/api/admin/voices", response_model=list[VoiceAdminResponse])
+def list_admin_voices(db: Session = Depends(get_db)) -> list[VoiceConfig]:
+    return list_voices(db)
+
+
+@app.post(
+    "/api/admin/voices/{voice_id}/activate",
+    response_model=VoiceAdminResponse,
+)
+def activate_admin_voice(
+    voice_id: int, db: Session = Depends(get_db)
+) -> VoiceConfig:
+    try:
+        return activate_voice(db, voice_id)
+    except VoiceNotFoundError as error:
+        raise voice_not_found_error() from error
+
+
+@app.get("/api/admin/voices/{voice_id}/preview")
+def preview_admin_voice(voice_id: int, db: Session = Depends(get_db)) -> FileResponse:
+    voice = db.get(VoiceConfig, voice_id)
+    if voice is None:
+        raise voice_not_found_error()
+
+    preview = (STATIC_DIR / voice.preview_path).resolve()
+    if not preview.is_relative_to(STATIC_DIR) or not preview.is_file():
+        raise voice_not_found_error()
+    return FileResponse(
+        preview,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@app.get("/api/voice/active", response_model=ActiveVoiceResponse)
+def active_voice(db: Session = Depends(get_db)) -> VoiceConfig:
+    try:
+        return get_active_voice(db)
+    except InvalidVoiceStateError as error:
+        logger.error("Voice catalog has no single active voice")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Active voice is unavailable",
+        ) from error
 
 
 @app.get("/health", response_model=HealthResponse)
