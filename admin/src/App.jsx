@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { faqApi } from "./api";
 
@@ -56,12 +56,16 @@ export default function App() {
   const [view, setView] = useState("faqs");
   const [faqs, setFaqs] = useState([]);
   const [unanswered, setUnanswered] = useState([]);
+  const [voices, setVoices] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [faqDraft, setFaqDraft] = useState(undefined);
   const [convertItem, setConvertItem] = useState(undefined);
+  const [previewingVoiceId, setPreviewingVoiceId] = useState(null);
+  const [activatingVoice, setActivatingVoice] = useState(false);
+  const audioRef = useRef(null);
 
   async function run(action, success) {
     setError(""); setNotice("");
@@ -81,7 +85,21 @@ export default function App() {
     setLoading(false);
   }
 
-  useEffect(() => { loadFaqs(); }, []);
+  async function loadVoices() {
+    setLoading(true);
+    await run(async () => setVoices(await faqApi.listVoices()));
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadFaqs();
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
 
   const filteredFaqs = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -90,8 +108,57 @@ export default function App() {
   }, [faqs, query]);
 
   function changeView(next) {
+    stopPreview();
     setView(next); setError(""); setNotice("");
     if (next === "unanswered") loadUnanswered();
+    if (next === "voices") loadVoices();
+  }
+
+  function stopPreview() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setPreviewingVoiceId(null);
+  }
+
+  async function togglePreview(voice) {
+    setError("");
+    if (previewingVoiceId === voice.id) {
+      stopPreview();
+      return;
+    }
+    stopPreview();
+    const audio = new Audio(faqApi.voicePreviewUrl(voice.id));
+    audioRef.current = audio;
+    setPreviewingVoiceId(voice.id);
+    audio.onended = () => {
+      if (audioRef.current === audio) stopPreview();
+    };
+    audio.onerror = () => {
+      if (audioRef.current === audio) stopPreview();
+      setError("Voice preview is unavailable.");
+    };
+    try {
+      await audio.play();
+    } catch {
+      if (audioRef.current === audio) stopPreview();
+      setError("Voice preview is unavailable.");
+    }
+  }
+
+  async function selectVoice(voice) {
+    setActivatingVoice(true);
+    await run(async () => {
+      const active = await faqApi.activateVoice(voice.id);
+      setVoices((current) => current.map((item) => ({
+        ...item,
+        is_active: item.id === active.id,
+        updated_at: item.id === active.id ? active.updated_at : item.updated_at,
+      })));
+    }, `Voice changed to ${voice.name}.`);
+    setActivatingVoice(false);
   }
 
   async function saveFaq(payload) {
@@ -128,11 +195,12 @@ export default function App() {
         <nav aria-label="Admin sections">
           <button className={view === "faqs" ? "nav-item active" : "nav-item"} onClick={() => changeView("faqs")}>FAQ Library</button>
           <button className={view === "unanswered" ? "nav-item active" : "nav-item"} onClick={() => changeView("unanswered")}>Unanswered Queue</button>
+          <button className={view === "voices" ? "nav-item active" : "nav-item"} onClick={() => changeView("voices")}>Voice Studio</button>
         </nav>
         <div className="sidebar-note"><span className="status-dot" />Backend connected</div>
       </aside>
       <main>
-        <header className="page-header"><div><span className="eyebrow">The Meridian Casino & Resort</span><h1>{view === "faqs" ? "FAQ Library" : "Unanswered Queue"}</h1><p>{view === "faqs" ? "Keep every guest answer accurate and searchable." : "Turn recurring guest questions into trusted answers."}</p></div>{view === "faqs" && <button className="button primary" onClick={() => setFaqDraft(null)}>Add FAQ</button>}</header>
+        <header className="page-header"><div><span className="eyebrow">The Meridian Casino & Resort</span><h1>{view === "faqs" ? "FAQ Library" : view === "unanswered" ? "Unanswered Queue" : "Voice Studio"}</h1><p>{view === "faqs" ? "Keep every guest answer accurate and searchable." : view === "unanswered" ? "Turn recurring guest questions into trusted answers." : "Choose the voice guests hear in every new conversation."}</p></div>{view === "faqs" && <button className="button primary" onClick={() => setFaqDraft(null)}>Add FAQ</button>}</header>
         {error && <div className="message error" role="alert">{error}</div>}
         {notice && <div className="message success" role="status">{notice}</div>}
         {view === "faqs" ? (
@@ -140,8 +208,10 @@ export default function App() {
             <div className="toolbar"><input type="search" aria-label="Search FAQs" placeholder="Search questions, answers, or categories" value={query} onChange={(event) => setQuery(event.target.value)} /><span>{filteredFaqs.length} entries</span></div>
             {loading ? <p className="empty">Loading FAQs…</p> : filteredFaqs.length === 0 ? <p className="empty">No FAQs match this search.</p> : <div className="card-grid">{filteredFaqs.map((faq) => <article className="card" key={faq.id}><div className="card-top"><span className="tag">{faq.category}</span><span className="muted">#{faq.id}</span></div><h2>{faq.question}</h2><p>{faq.answer}</p><div className="card-actions"><button className="text-button" onClick={() => setFaqDraft(faq)}>Edit</button><button className="text-button danger" onClick={() => removeFaq(faq)}>Delete</button></div></article>)}</div>}
           </section>
-        ) : (
+        ) : view === "unanswered" ? (
           <section>{loading ? <p className="empty">Loading queue…</p> : unanswered.length === 0 ? <p className="empty">The unanswered queue is clear.</p> : <div className="queue">{unanswered.map((item) => <article className="queue-row" key={item.id}><div className="frequency"><strong>{item.frequency}</strong><span>times asked</span></div><div className="queue-copy"><h2>{item.original_question}</h2><p>Last seen {formatDate(item.last_seen_at)}</p></div><div className="card-actions"><button className="button secondary" onClick={() => dismiss(item)}>Dismiss</button><button className="button primary" onClick={() => setConvertItem(item)}>Convert</button></div></article>)}</div>}</section>
+        ) : (
+          <section>{loading ? <p className="empty">Loading voices…</p> : voices.length === 0 ? <p className="empty">No concierge voices are available.</p> : <div className="voice-grid">{voices.map((voice) => <article className={voice.is_active ? "voice-card active-voice" : "voice-card"} key={voice.id}><div className="voice-card-top"><div className="voice-avatar" aria-hidden="true">{voice.name[0]}</div>{voice.is_active && <span className="active-badge">Active voice</span>}</div><h2>{voice.name}</h2><p>{voice.description}</p><div className="waveform" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /></div><div className="voice-actions"><button className="button secondary preview-button" type="button" aria-label={`${previewingVoiceId === voice.id ? "Stop preview" : "Preview"} ${voice.name}`} onClick={() => togglePreview(voice)}>{previewingVoiceId === voice.id ? "■ Stop preview" : "▶ Preview"}</button><button className="button primary" type="button" disabled={voice.is_active || activatingVoice} onClick={() => selectVoice(voice)}>{voice.is_active ? "Currently active" : "Set active"}</button></div></article>)}</div>}</section>
         )}
       </main>
       {faqDraft !== undefined && <FaqForm initial={faqDraft || undefined} onCancel={() => setFaqDraft(undefined)} onSave={saveFaq} />}

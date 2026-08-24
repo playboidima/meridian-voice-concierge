@@ -36,4 +36,8 @@ export const faqApi = {
     request(`/api/admin/unanswered/${id}/convert`, json("POST", payload)),
   dismissUnanswered: (id) =>
     request(`/api/admin/unanswered/${id}/dismiss`, { method: "POST" }),
+  listVoices: () => request("/api/admin/voices"),
+  activateVoice: (id) =>
+    request(`/api/admin/voices/${id}/activate`, { method: "POST" }),
+  voicePreviewUrl: (id) => `/api/admin/voices/${id}/preview`,
 };

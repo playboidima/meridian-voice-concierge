@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,13 @@ const faq = {
   created_at: "2026-08-24T10:00:00Z",
   updated_at: "2026-08-24T10:00:00Z",
 };
+
+const voices = [
+  { id: 1, name: "James", description: "Mature, warm British male; professional and refined.", is_active: true, preview_url: "/api/admin/voices/1/preview", updated_at: "2026-08-24T10:00:00Z" },
+  { id: 2, name: "Sofia", description: "Friendly, elegant female with a light European accent.", is_active: false, preview_url: "/api/admin/voices/2/preview", updated_at: "2026-08-24T10:00:00Z" },
+  { id: 3, name: "Marcus", description: "Confident, energetic, modern American male.", is_active: false, preview_url: "/api/admin/voices/3/preview", updated_at: "2026-08-24T10:00:00Z" },
+  { id: 4, name: "Elena", description: "Calm, reassuring, clear American female.", is_active: false, preview_url: "/api/admin/voices/4/preview", updated_at: "2026-08-24T10:00:00Z" },
+];
 
 function jsonResponse(body, status = 200) {
   return Promise.resolve({
@@ -112,5 +119,92 @@ describe("Meridian admin", () => {
     fetch.mockImplementationOnce(() => jsonResponse({ detail: "Backend unavailable" }, 503));
     render(<App />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Backend unavailable");
+  });
+
+  it("shows the four-voice Voice Studio with one active voice", async () => {
+    const user = userEvent.setup();
+    fetch
+      .mockImplementationOnce(() => jsonResponse([faq]))
+      .mockImplementationOnce(() => jsonResponse(voices));
+    render(<App />);
+
+    await screen.findByText("When is check-in?");
+    await user.click(screen.getByRole("button", { name: "Voice Studio" }));
+
+    expect(await screen.findByRole("heading", { name: "Voice Studio" })).toBeInTheDocument();
+    expect(screen.getAllByText("Active voice")).toHaveLength(1);
+    for (const voice of voices) expect(screen.getByText(voice.name)).toBeInTheDocument();
+  });
+
+  it("activates Sofia and moves the active badge", async () => {
+    const user = userEvent.setup();
+    fetch
+      .mockImplementationOnce(() => jsonResponse([faq]))
+      .mockImplementationOnce(() => jsonResponse(voices))
+      .mockImplementationOnce(() => jsonResponse({ ...voices[1], is_active: true }));
+    render(<App />);
+
+    await screen.findByText("When is check-in?");
+    await user.click(screen.getByRole("button", { name: "Voice Studio" }));
+    const sofiaCard = (await screen.findByText("Sofia")).closest("article");
+    await user.click(within(sofiaCard).getByRole("button", { name: "Set active" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    expect(fetch.mock.calls[2][0]).toBe("/api/admin/voices/2/activate");
+    expect(fetch.mock.calls[2][1].method).toBe("POST");
+    expect(await screen.findByText("Voice changed to Sofia.")).toBeInTheDocument();
+    expect(within(sofiaCard).getByText("Active voice")).toBeInTheDocument();
+    expect(screen.getAllByText("Active voice")).toHaveLength(1);
+  });
+
+  it("keeps the previous active badge when activation fails", async () => {
+    const user = userEvent.setup();
+    fetch
+      .mockImplementationOnce(() => jsonResponse([faq]))
+      .mockImplementationOnce(() => jsonResponse(voices))
+      .mockImplementationOnce(() => jsonResponse({ detail: "Activation failed" }, 503));
+    render(<App />);
+
+    await screen.findByText("When is check-in?");
+    await user.click(screen.getByRole("button", { name: "Voice Studio" }));
+    const jamesCard = (await screen.findByText("James")).closest("article");
+    const sofiaCard = screen.getByText("Sofia").closest("article");
+    await user.click(within(sofiaCard).getByRole("button", { name: "Set active" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Activation failed");
+    expect(within(jamesCard).getByText("Active voice")).toBeInTheDocument();
+    expect(within(sofiaCard).queryByText("Active voice")).not.toBeInTheDocument();
+  });
+
+  it("pauses the previous preview before playing another voice", async () => {
+    const user = userEvent.setup();
+    const audioInstances = [];
+    class AudioMock {
+      constructor(url) {
+        this.url = url;
+        this.currentTime = 0;
+        this.pause = vi.fn();
+        this.play = vi.fn(() => Promise.resolve());
+        audioInstances.push(this);
+      }
+    }
+    vi.stubGlobal("Audio", AudioMock);
+    fetch
+      .mockImplementationOnce(() => jsonResponse([faq]))
+      .mockImplementationOnce(() => jsonResponse(voices));
+    render(<App />);
+
+    await screen.findByText("When is check-in?");
+    await user.click(screen.getByRole("button", { name: "Voice Studio" }));
+    await screen.findByText("James");
+    await user.click(screen.getByRole("button", { name: "Preview James" }));
+    await user.click(screen.getByRole("button", { name: "Preview Sofia" }));
+
+    expect(audioInstances.map((audio) => audio.url)).toEqual([
+      "/api/admin/voices/1/preview",
+      "/api/admin/voices/2/preview",
+    ]);
+    expect(audioInstances[0].pause).toHaveBeenCalled();
+    expect(audioInstances[1].play).toHaveBeenCalled();
   });
 });
