@@ -60,3 +60,12 @@ Bonus (React-адмінпанель, керування FAQ та голосам�
 - Запитання можна атомарно перетворити на FAQ з новим пошуковим embedding.
 - Нерелевантне запитання можна позначити як `dismissed`.
 - Для відсутніх записів і дублікатів FAQ повертаються стабільні `404`/`409`.
+
+## Bonus B3 — ready for manual review
+
+- React-панель на `http://localhost:3000` керує FAQ та unanswered queue.
+- Nginx віддає production bundle і без CORS-змін проксіює `/api` до Backend.
+- FAQ підтримують пошук, create, edit і підтверджене delete.
+- Queue підтримує frequency, Convert і підтверджене Dismiss.
+- П'ять component tests запускаються під час Docker build; desktop і narrow
+  layouts перевірені в браузері.

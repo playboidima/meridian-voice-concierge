@@ -10,6 +10,7 @@ Core Voice Concierge: Backend API, PostgreSQL, 47 FAQ та окремий анг
 ```text
 LiveKit Agent -> FastAPI -> service пошуку -> PostgreSQL
                          -> unanswered questions
+Browser -> React Admin (Nginx) -> FastAPI admin API
 ```
 
 FAQ-пошук гібридний. Backend створює локальні англійські embeddings моделлю `BAAI/bge-small-en-v1.5`, зберігає їх у PostgreSQL через `pgvector` і виконує cosine similarity search. Сильні точні та перевірені lexical-збіги мають пріоритет, а semantic retrieval обробляє нові природні перефразування. Якщо обидва механізми нижче відповідного порога, API повертає `matched: false`. Embedding-модель працює локально на CPU і не потребує API-ключа.
@@ -29,7 +30,7 @@ Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-Під час першого Docker build завантажується локальна embedding-модель. Backend автоматично застосує Alembic-міграції, увімкне `pgvector` і безпечно повторить seed разом з embeddings. API буде доступний на `http://localhost:8000`, Swagger — на `http://localhost:8000/docs`.
+Під час першого Docker build завантажується локальна embedding-модель. Backend автоматично застосує Alembic-міграції, увімкне `pgvector` і безпечно повторить seed разом з embeddings. API буде доступний на `http://localhost:8000`, Swagger — на `http://localhost:8000/docs`, React-адмінпанель — на `http://localhost:3000`.
 
 Перевірка:
 
@@ -237,12 +238,32 @@ Dismiss повертає запис зі статусом `dismissed`. Обро�
 `404`; спроба створити FAQ з наявним питанням повертає `409` і залишає запис
 черги відкритим.
 
+## React-адмінпанель (Bonus B3)
+
+Після `docker compose up --build -d` відкрийте `http://localhost:3000`.
+
+- **FAQ Library**: пошук, додавання, редагування та видалення FAQ.
+- **Unanswered Queue**: частота невідомих запитань, Convert і Dismiss.
+
+Nginx усередині `admin` проксіює `/api` до Backend, тому frontend не містить
+ключів або окремої адреси API. Production build автоматично запускає 5
+компонентних тестів перед створенням статичних файлів. Окрема перевірка:
+
+```powershell
+docker compose build admin
+Invoke-WebRequest http://localhost:3000/health
+Invoke-RestMethod http://localhost:3000/api/admin/faqs
+```
+
+Налаштування голосів та інтегрований Playground до B3 не входять.
+
 ## Корисні команди
 
 ```powershell
 docker compose config
 docker compose run --rm backend pytest -q
 docker compose run --rm agent pytest -q
+docker compose build admin
 docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_postgres_concurrency.py
 docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_faq_admin_postgres.py
 docker compose down
@@ -272,7 +293,7 @@ docker compose ps
 docker compose exec db psql -U meridian -d meridian -c "SELECT COUNT(*) FROM faqs;"
 ```
 
-Усі три сервіси мають бути `healthy`, а кількість FAQ — `47`.
+Усі чотири сервіси мають бути `healthy`, а кількість FAQ — `47`.
 
 Команду `docker compose down -v` використовуйте лише коли записані unknown-питання
 більше не потрібні. Для звичайного перезапуску достатньо `docker compose down`,
@@ -283,4 +304,4 @@ docker compose exec db psql -U meridian -d meridian -c "SELECT COUNT(*) FROM faq
 - Голосова сесія потребує інтернету, LiveKit Cloud credentials і доступності LiveKit Inference.
 - Semantic threshold відкалібровано на контрольному наборі Core; перед суттєвим розширенням бази FAQ його потрібно повторно перевірити на позитивних і негативних сценаріях.
 - Частота невідомих питань об'єднується за однаковим нормалізованим текстом; різні за формулюванням питання про одну тему можуть залишитися окремими записами.
-- Бронювання, оплата, авторизація, React-адмінпанель і бонусні функції не входять до поточного Core.
+- Бронювання, оплата й авторизація не входять до завдання; налаштування голосів та інтегрований Playground залишаються наступними Bonus-етапами.

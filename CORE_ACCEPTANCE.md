@@ -19,7 +19,7 @@
 | API-1: FAQ search endpoint | Пройдено | `POST /api/faq/search` та API-тести |
 | API-2: unanswered endpoint | Пройдено | `POST /api/unanswered` та API-тести |
 | API-3: match/no-match контракт | Пройдено | Позитивні й негативні regression-тести |
-| AP-1: список FAQ для адміністратора | Пройдено | `GET /api/admin/faqs`; `backend/tests/test_faq_admin_api.py::test_admin_faq_list_is_sorted_and_hides_embedding` перевіряє порядок за `id` та відсутність embedding у відповіді |
+| AP-1: список FAQ для адміністратора | Пройдено | React `FAQ Library` використовує `GET /api/admin/faqs`; Backend і React component tests перевіряють список, пошук та відсутність embedding |
 | AP-2: створення FAQ з пошуковим embedding | Пройдено | `POST /api/admin/faqs`; unit-тести перевіряють `201`, trimming, `422` і `409`, а opt-in PostgreSQL test перевіряє 384-вимірний embedding і пошук створеного FAQ |
 | AP-3: оновлення FAQ та пошуку | Пройдено | `PUT /api/admin/faqs/{faq_id}`; unit-тести перевіряють `200`, recompute embedding, `404`, `409` і rollback, а opt-in PostgreSQL test знаходить оновлену відповідь |
 | AP-4: видалення FAQ | Пройдено | `DELETE /api/admin/faqs/{faq_id}`; unit-тест перевіряє `204` без тіла та наступний `404`, а opt-in PostgreSQL lifecycle test видаляє створений FAQ і підтверджує cleanup |
@@ -27,6 +27,7 @@
 | AP-6: відображення frequency | Пройдено | Відповідь черги містить `frequency`, timestamps і status; API-тест перевіряє значення та сортування |
 | AP-7: перетворення unknown на FAQ | Пройдено | `POST /api/admin/unanswered/{id}/convert`; тест перевіряє FAQ, 384-вимірний embedding, статус `converted` і rollback при дублікаті |
 | AP-8: відхилення unknown | Пройдено | `POST /api/admin/unanswered/{id}/dismiss`; тест перевіряє статус `dismissed`, зникнення з відкритої черги та `404` |
+| NF-3: desktop admin usability | Готово до manual review | Responsive React layout перевірено автоматичними component tests та browser QA на desktop/narrow viewport |
 | PG-1-PG-5: browser, mic, audio, status, Start/End | Пройдено (manual) | LiveKit Agents Playground |
 | NF-1: розмовна голосова відповідь | Пройдено (manual) | Голосові сценарії; окремий latency benchmark PRD не задає |
 | NF-2: локальний Docker-запуск | Пройдено | `docker compose up --build`; усі сервіси healthy |
@@ -50,5 +51,5 @@ Invoke-RestMethod http://localhost:8000/health
 
 ## Межа приймання
 
-Матриця охоплює Core, Bonus B1 FAQ API та Bonus B2 unanswered queue API.
+Матриця охоплює Core, Bonus B1/B2 API та Bonus B3 React admin panel.
 NF-3, NF-5, VX-* та наступні Bonus-етапи не є блокерами здачі основної частини.
