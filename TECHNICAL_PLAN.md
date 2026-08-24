@@ -50,4 +50,46 @@
 - Додати Core acceptance checklist із доказами автоматичних і ручних перевірок.
 - Перевірити відсутність секретів та виконати фінальну регресію.
 
-Bonus (React-адмінпанель, керування FAQ та голосами) починається лише після проходження всіх Core-критеріїв.
+Bonus почався лише після проходження всіх Core-критеріїв.
+
+## Bonus B1 — ready for manual review
+
+## Bonus B2 — ready for manual review
+
+- Відкрита черга unknown-запитань сортується за частотою та останньою появою.
+- Запитання можна атомарно перетворити на FAQ з новим пошуковим embedding.
+- Нерелевантне запитання можна позначити як `dismissed`.
+- Для відсутніх записів і дублікатів FAQ повертаються стабільні `404`/`409`.
+
+## Bonus B3 — ready for manual review
+
+- React-панель на `http://localhost:3000` керує FAQ та unanswered queue.
+- Nginx віддає production bundle і без CORS-змін проксіює `/api` до Backend.
+- FAQ підтримують пошук, create, edit і підтверджене delete.
+- Queue підтримує frequency, Convert і підтверджене Dismiss.
+- П'ять component tests запускаються під час Docker build; desktop і narrow
+  layouts перевірені в браузері.
+
+## Bonus B4 — complete
+
+- Додано чотири перевірені PRD-голоси та реальні MP3 preview.
+- PostgreSQL і Backend API гарантують рівно один активний голос.
+- Agent читає активний голос для кожної нової LiveKit-сесії без перезапуску.
+- Англомовний Voice Studio відтворює preview та перемикає активний голос.
+- Дев'ять component tests запускаються під час Admin Docker build; desktop і
+  mobile layouts перевірені в браузері без overflow та console errors.
+- Фінальний no-restart acceptance підтвердив Marcus → Elena для нових LiveKit
+  сесій, усі чотири preview, known FAQ та безпечний unknown-flow.
+- Доданий semantic ambiguity guard і regression-тест не дозволяють telescope
+  rental помилково збігатися з FAQ про helicopter tours.
+
+## Bonus B5 — complete
+
+- Backend безпечно видає короткочасні room-scoped LiveKit tokens.
+- Англомовний Playground в адмінпанелі має Start/End, мікрофон, remote audio,
+  стани з'єднання й агента, активний голос та останню FAQ-відповідь.
+- Повторний старт працює без перезавантаження, а unmount завершує сесію.
+- Component tests перевіряють UI, token/start/end/error flow і regression для
+  передчасного disconnect під час rerender.
+- Ручна браузерна перевірка підтвердила успішну голосову сесію після виправлення
+  session lifecycle.

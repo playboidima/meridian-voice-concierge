@@ -1,16 +1,221 @@
-from fastapi import Depends, FastAPI
-from sqlalchemy import text
+import logging
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.responses import FileResponse
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.models import UnansweredQuestion
-from app.schemas import FAQSearchResponse, HealthResponse, QuestionRequest, UnansweredResponse
+from app.models import FAQ, UnansweredQuestion, VoiceConfig
+from app.schemas import (
+    FAQAdminResponse,
+    FAQAdminWrite,
+    FAQSearchResponse,
+    HealthResponse,
+    QuestionRequest,
+    UnansweredConvertWrite,
+    UnansweredResponse,
+    ActiveVoiceResponse,
+    VoiceAdminResponse,
+    LiveKitTokenRequest,
+    LiveKitTokenResponse,
+)
 from app.services.faq_search import find_best_faq
+from app.services.faq_admin import (
+    FAQConflictError,
+    FAQNotFoundError,
+    create_faq,
+    delete_faq,
+    update_faq,
+)
 from app.services.text import normalize_question
 from app.services.unanswered import record_unanswered_question
+from app.services.unanswered_admin import (
+    UnansweredNotFoundError,
+    convert_unanswered_to_faq,
+    dismiss_unanswered,
+)
+from app.services.voice_admin import (
+    InvalidVoiceStateError,
+    VoiceNotFoundError,
+    activate_voice,
+    get_active_voice,
+    list_voices,
+)
+from app.services.livekit_tokens import (
+    LiveKitNotConfiguredError,
+    create_playground_token,
+)
 
 app = FastAPI(title="Meridian Voice Concierge API", version="0.1.0")
+logger = logging.getLogger(__name__)
+STATIC_DIR = (Path(__file__).parent / "static").resolve()
+
+
+@app.post(
+    "/api/livekit/token",
+    response_model=LiveKitTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def livekit_token(payload: LiveKitTokenRequest) -> LiveKitTokenResponse:
+    try:
+        return create_playground_token(payload)
+    except LiveKitNotConfiguredError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LiveKit is not configured",
+        ) from error
+
+
+def faq_admin_http_error(error: FAQConflictError | FAQNotFoundError) -> HTTPException:
+    if isinstance(error, FAQNotFoundError):
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="FAQ not found")
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="FAQ question already exists",
+    )
+
+
+@app.get("/api/admin/faqs", response_model=list[FAQAdminResponse])
+def list_admin_faqs(db: Session = Depends(get_db)) -> list[FAQ]:
+    return list(db.scalars(select(FAQ).order_by(FAQ.id)))
+
+
+@app.post(
+    "/api/admin/faqs",
+    response_model=FAQAdminResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_admin_faq(payload: FAQAdminWrite, db: Session = Depends(get_db)) -> FAQ:
+    try:
+        return create_faq(db, payload)
+    except FAQConflictError as error:
+        raise faq_admin_http_error(error) from error
+
+
+@app.put("/api/admin/faqs/{faq_id}", response_model=FAQAdminResponse)
+def update_admin_faq(
+    faq_id: int, payload: FAQAdminWrite, db: Session = Depends(get_db)
+) -> FAQ:
+    try:
+        return update_faq(db, faq_id, payload)
+    except (FAQConflictError, FAQNotFoundError) as error:
+        raise faq_admin_http_error(error) from error
+
+
+@app.delete("/api/admin/faqs/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_admin_faq(faq_id: int, db: Session = Depends(get_db)) -> None:
+    try:
+        delete_faq(db, faq_id)
+    except FAQNotFoundError as error:
+        raise faq_admin_http_error(error) from error
+
+
+def unanswered_not_found_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Unanswered question not found",
+    )
+
+
+@app.get("/api/admin/unanswered", response_model=list[UnansweredResponse])
+def list_admin_unanswered(db: Session = Depends(get_db)) -> list[UnansweredQuestion]:
+    statement = (
+        select(UnansweredQuestion)
+        .where(UnansweredQuestion.status == "open")
+        .order_by(
+            UnansweredQuestion.frequency.desc(),
+            UnansweredQuestion.last_seen_at.desc(),
+            UnansweredQuestion.id,
+        )
+    )
+    return list(db.scalars(statement))
+
+
+@app.post(
+    "/api/admin/unanswered/{unanswered_id}/dismiss",
+    response_model=UnansweredResponse,
+)
+def dismiss_admin_unanswered(
+    unanswered_id: int, db: Session = Depends(get_db)
+) -> UnansweredQuestion:
+    try:
+        return dismiss_unanswered(db, unanswered_id)
+    except UnansweredNotFoundError as error:
+        raise unanswered_not_found_error() from error
+
+
+@app.post(
+    "/api/admin/unanswered/{unanswered_id}/convert",
+    response_model=FAQAdminResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def convert_admin_unanswered(
+    unanswered_id: int,
+    payload: UnansweredConvertWrite,
+    db: Session = Depends(get_db),
+) -> FAQ:
+    try:
+        return convert_unanswered_to_faq(db, unanswered_id, payload)
+    except UnansweredNotFoundError as error:
+        raise unanswered_not_found_error() from error
+    except FAQConflictError as error:
+        raise faq_admin_http_error(error) from error
+
+
+def voice_not_found_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Voice not found",
+    )
+
+
+@app.get("/api/admin/voices", response_model=list[VoiceAdminResponse])
+def list_admin_voices(db: Session = Depends(get_db)) -> list[VoiceConfig]:
+    return list_voices(db)
+
+
+@app.post(
+    "/api/admin/voices/{voice_id}/activate",
+    response_model=VoiceAdminResponse,
+)
+def activate_admin_voice(
+    voice_id: int, db: Session = Depends(get_db)
+) -> VoiceConfig:
+    try:
+        return activate_voice(db, voice_id)
+    except VoiceNotFoundError as error:
+        raise voice_not_found_error() from error
+
+
+@app.get("/api/admin/voices/{voice_id}/preview")
+def preview_admin_voice(voice_id: int, db: Session = Depends(get_db)) -> FileResponse:
+    voice = db.get(VoiceConfig, voice_id)
+    if voice is None:
+        raise voice_not_found_error()
+
+    preview = (STATIC_DIR / voice.preview_path).resolve()
+    if not preview.is_relative_to(STATIC_DIR) or not preview.is_file():
+        raise voice_not_found_error()
+    return FileResponse(
+        preview,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@app.get("/api/voice/active", response_model=ActiveVoiceResponse)
+def active_voice(db: Session = Depends(get_db)) -> VoiceConfig:
+    try:
+        return get_active_voice(db)
+    except InvalidVoiceStateError as error:
+        logger.error("Voice catalog has no single active voice")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Active voice is unavailable",
+        ) from error
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -1,3 +1,6 @@
+from app.seed_data import ENGLISH_TO_LEGACY_QUESTIONS
+
+
 FAQ_SEMANTIC_PASSAGES: dict[str, str] = {
     "Де розташований The Meridian?": "The Meridian Casino and Resort is located on the Las Vegas Strip in Nevada.",
     "Коли працює казино?": "The casino is open twenty four hours a day, seven days a week.",
@@ -47,3 +50,8 @@ FAQ_SEMANTIC_PASSAGES: dict[str, str] = {
     "Яка партнерська знижка в Spa Aquae at JW Marriott?": "Spa Aquae at JW Marriott gives Meridian guests 10 percent off treatments when Meridian Spa is fully booked.",
     "Яка партнерська пропозиція у Fremont Street Experience?": "Meridian guests receive a VIP skip-the-line SlotZilla pass at Fremont Street Experience.",
 }
+
+
+def faq_semantic_passage(question: str) -> str:
+    legacy_question = ENGLISH_TO_LEGACY_QUESTIONS.get(question, question)
+    return FAQ_SEMANTIC_PASSAGES.get(legacy_question, "")

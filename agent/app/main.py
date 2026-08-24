@@ -68,30 +68,50 @@ class MeridianConcierge(Agent):
 server = AgentServer()
 
 
-@server.rtc_session(agent_name=os.getenv("AGENT_NAME", "meridian-concierge"))
-async def meridian_agent(ctx: agents.JobContext) -> None:
-    session = AgentSession(
+async def resolve_voice_id(api: ConciergeAPI, fallback: str) -> str:
+    try:
+        active_voice = await api.get_active_voice()
+    except (httpx.HTTPError, ValueError):
+        logger.warning("Active voice unavailable; using local fallback")
+        return fallback
+    return active_voice["provider_voice_id"]
+
+
+def build_tts(voice_id: str) -> inference.TTS:
+    return inference.TTS(
+        model=os.getenv("TTS_MODEL", "cartesia/sonic-3"),
+        voice=voice_id,
+        language=os.getenv("TTS_LANGUAGE", "en"),
+    )
+
+
+async def build_session(
+    api: ConciergeAPI, fallback_voice_id: str
+) -> AgentSession:
+    voice_id = await resolve_voice_id(api, fallback_voice_id)
+    return AgentSession(
         stt=inference.STT(
             model=os.getenv("STT_MODEL", "deepgram/nova-3"),
             language=os.getenv("STT_LANGUAGE", "en"),
         ),
         llm=inference.LLM(model=os.getenv("LLM_MODEL", "openai/gpt-4.1-mini")),
-        tts=inference.TTS(
-            model=os.getenv("TTS_MODEL", "cartesia/sonic-3"),
-            voice=os.getenv(
-                "TTS_VOICE", "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
-            ),
-            language=os.getenv("TTS_LANGUAGE", "en"),
-        ),
+        tts=build_tts(voice_id),
         turn_handling=TurnHandlingOptions(
             turn_detection=inference.TurnDetector(),
         ),
     )
+
+
+@server.rtc_session(agent_name=os.getenv("AGENT_NAME", "meridian-concierge"))
+async def meridian_agent(ctx: agents.JobContext) -> None:
+    api = ConciergeAPI(os.getenv("BACKEND_URL", "http://backend:8000"))
+    session = await build_session(
+        api,
+        os.getenv("TTS_VOICE", "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"),
+    )
     await session.start(
         room=ctx.room,
-        agent=MeridianConcierge(
-            ConciergeAPI(os.getenv("BACKEND_URL", "http://backend:8000"))
-        ),
+        agent=MeridianConcierge(api),
     )
     await session.generate_reply(
         instructions="Greet the guest briefly in English and offer your assistance."

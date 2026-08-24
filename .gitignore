@@ -9,4 +9,6 @@ htmlcov/
 .vscode/
 .DS_Store
 .tmp_prd_render/
-
+node_modules/
+.pnpm-store/
+admin/dist/

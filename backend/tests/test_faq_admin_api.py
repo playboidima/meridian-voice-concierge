@@ -1,0 +1,180 @@
+import pytest
+
+from sqlalchemy import select
+
+from app.models import FAQ
+from app.schemas import FAQAdminWrite
+
+
+def test_admin_faq_list_is_sorted_and_hides_embedding(client):
+    response = client.get("/api/admin/faqs")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert [item["id"] for item in body] == sorted(item["id"] for item in body)
+    assert body
+    assert "embedding" not in body[0]
+    assert set(body[0]) == {
+        "id", "question", "answer", "category", "created_at", "updated_at"
+    }
+
+
+def test_admin_faq_write_strips_fields_and_rejects_blank_values():
+    payload = FAQAdminWrite(
+        question="  Is breakfast available?  ",
+        answer="  Breakfast is served daily.  ",
+        category="  dining  ",
+    )
+    assert payload.question == "Is breakfast available?"
+    assert payload.answer == "Breakfast is served daily."
+    assert payload.category == "dining"
+
+
+def test_admin_can_create_faq_with_a_persisted_embedding(client, db_session, monkeypatch):
+    embedding = [0.25] * 384
+    monkeypatch.setattr("app.services.embeddings.embed_passage", lambda _: embedding)
+
+    response = client.post(
+        "/api/admin/faqs",
+        json={
+            "question": "  Is late checkout available?  ",
+            "answer": "  Late checkout is subject to availability.  ",
+            "category": "  hotel  ",
+        },
+    )
+
+    assert response.status_code == 201
+    assert set(response.json()) == {
+        "id", "question", "answer", "category", "created_at", "updated_at"
+    }
+    assert "embedding" not in response.json()
+    assert response.json()["question"] == "Is late checkout available?"
+    assert response.json()["answer"] == "Late checkout is subject to availability."
+    assert response.json()["category"] == "hotel"
+
+    faq = db_session.scalar(select(FAQ).where(FAQ.id == response.json()["id"]))
+    assert faq is not None
+    assert faq.embedding == embedding
+
+
+def test_admin_create_rejects_duplicate_question(client, monkeypatch):
+    monkeypatch.setattr("app.services.embeddings.embed_passage", lambda _: [0.25] * 384)
+
+    response = client.post(
+        "/api/admin/faqs",
+        json={
+            "question": "Коли працює покерна кімната і які ігри доступні?",
+            "answer": "A duplicate answer.",
+            "category": "casino",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "FAQ question already exists"}
+
+
+def test_admin_can_update_faq_with_a_recomputed_persisted_embedding(
+    client, db_session, monkeypatch
+):
+    embedding = [0.75] * 384
+    monkeypatch.setattr("app.services.embeddings.embed_passage", lambda _: embedding)
+
+    faq = db_session.scalar(
+        select(FAQ).where(FAQ.question == "Які правила щодо домашніх тварин?")
+    )
+    assert faq is not None
+
+    response = client.put(
+        f"/api/admin/faqs/{faq.id}",
+        json={
+            "question": "  Are pets allowed?  ",
+            "answer": "  Pets are welcome in designated rooms.  ",
+            "category": "  hotel  ",
+        },
+    )
+
+    assert response.status_code == 200
+    assert set(response.json()) == {
+        "id", "question", "answer", "category", "created_at", "updated_at"
+    }
+    assert response.json()["question"] == "Are pets allowed?"
+    assert response.json()["answer"] == "Pets are welcome in designated rooms."
+    assert response.json()["category"] == "hotel"
+
+    db_session.refresh(faq)
+    assert faq.question == "Are pets allowed?"
+    assert faq.answer == "Pets are welcome in designated rooms."
+    assert faq.category == "hotel"
+    assert faq.embedding == embedding
+
+
+def test_admin_update_returns_not_found_for_a_missing_faq(client):
+    response = client.put(
+        "/api/admin/faqs/9999",
+        json={
+            "question": "Are pets allowed?",
+            "answer": "Pets are welcome in designated rooms.",
+            "category": "hotel",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "FAQ not found"}
+
+
+def test_admin_update_to_duplicate_question_rolls_back_completely(client, db_session, monkeypatch):
+    monkeypatch.setattr("app.services.embeddings.embed_passage", lambda _: [0.75] * 384)
+    faq = db_session.scalar(
+        select(FAQ).where(FAQ.question == "Які правила щодо домашніх тварин?")
+    )
+    assert faq is not None
+    original = (faq.question, faq.answer, faq.category, faq.embedding)
+
+    response = client.put(
+        f"/api/admin/faqs/{faq.id}",
+        json={
+            "question": "Коли працює покерна кімната і які ігри доступні?",
+            "answer": "Changed answer.",
+            "category": "casino",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "FAQ question already exists"}
+    db_session.refresh(faq)
+    assert (faq.question, faq.answer, faq.category, faq.embedding) == original
+
+
+def test_admin_can_delete_faq_and_then_reports_it_missing(client, db_session):
+    faq = db_session.scalar(
+        select(FAQ).where(FAQ.question == "Які правила щодо домашніх тварин?")
+    )
+    assert faq is not None
+
+    response = client.delete(f"/api/admin/faqs/{faq.id}")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert db_session.get(FAQ, faq.id) is None
+
+    second_response = client.delete(f"/api/admin/faqs/{faq.id}")
+
+    assert second_response.status_code == 404
+    assert second_response.json() == {"detail": "FAQ not found"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"question": " ", "answer": "Valid answer", "category": "hotel"},
+        {"question": "Valid question", "answer": " ", "category": "hotel"},
+        {"question": "Valid question", "answer": "Valid answer", "category": " "},
+    ],
+)
+def test_admin_faq_rejects_blank_fields(client, payload):
+    response = client.post(
+        "/api/admin/faqs",
+        json=payload,
+    )
+
+    assert response.status_code == 422

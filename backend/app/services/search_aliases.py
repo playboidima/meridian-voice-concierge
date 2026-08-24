@@ -1,3 +1,6 @@
+from app.seed_data import ENGLISH_TO_LEGACY_QUESTIONS
+
+
 FAQ_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
     "Де розташований The Meridian?": (
         "Where is the Meridian Casino and Resort located?",
@@ -179,3 +182,8 @@ FAQ_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
         "What offer is available for the Fremont Street Experience?",
     ),
 }
+
+
+def faq_search_aliases(question: str) -> tuple[str, ...]:
+    legacy_question = ENGLISH_TO_LEGACY_QUESTIONS.get(question, question)
+    return FAQ_SEARCH_ALIASES.get(legacy_question, ())

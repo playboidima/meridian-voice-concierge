@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import app
 from app.models import FAQ
+from app.services.voice_admin import reconcile_voice_catalog
 
 
 @pytest.fixture()
@@ -35,6 +36,7 @@ def db_session():
         ),
     ])
     session.commit()
+    reconcile_voice_catalog(session)
     try:
         yield session
     finally:
@@ -50,4 +52,3 @@ def client(db_session: Session):
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
-

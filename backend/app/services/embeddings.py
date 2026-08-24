@@ -4,8 +4,8 @@ from fastembed import TextEmbedding
 
 from app.config import settings
 from app.models import FAQ
-from app.services.search_aliases import FAQ_SEARCH_ALIASES
-from app.services.semantic_passages import FAQ_SEMANTIC_PASSAGES
+from app.services.search_aliases import faq_search_aliases
+from app.services.semantic_passages import faq_semantic_passage
 
 
 @lru_cache(maxsize=1)
@@ -24,8 +24,8 @@ def embed_passage(text: str) -> list[float]:
 
 
 def faq_embedding_text(question: str, answer: str, category: str) -> str:
-    aliases = " ".join(FAQ_SEARCH_ALIASES.get(question, ()))
-    semantic_passage = FAQ_SEMANTIC_PASSAGES.get(question, "")
+    aliases = " ".join(faq_search_aliases(question))
+    semantic_passage = faq_semantic_passage(question)
     if semantic_passage:
         return f"{semantic_passage} {aliases}."
     return f"{question}. {answer}. Category: {category}."
