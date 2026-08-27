@@ -1,4 +1,36 @@
-# Core acceptance checklist
+# Core and Bonus acceptance checklist
+
+## Повторне приймання — 27 August 2026
+
+Цей розділ містить актуальні результати після виправлень аудиту; результати
+24 August нижче залишені як історія, а не новий запуск тестів.
+
+- Backend: **142 passed, 0 skipped**, включно з усіма opt-in PostgreSQL tests.
+- Agent: **16 passed, 0 skipped**, включно з реальною взаємодією з тестовим API.
+- Admin: **17 passed**; свіжий production build успішний. Vite попереджає про
+  JS bundle 776.13 kB (gzip 213.34 kB); це не помилка збірки.
+- Окремий Compose-проєкт `meridian-final-audit-20260827` з новим volume, без
+  робочих даних і ключів: міграція `20260827_06`, 48 FAQ/embeddings, 4 голоси.
+- Після CRUD, Convert, Dismiss і restart backend зміни та видалення збереглися;
+  початкові FAQ не відновилися. Повторний `up` успішний.
+- Робоча система: усі 4 контейнери healthy, backend health ok, admin HTTP 200,
+  усі 4 різні preview доступні, рівно один активний голос. Живі записи не змінювалися.
+- `.env` і `.venv` ignored; tracked `.env`/dump/key/pem не знайдено, staged list
+  порожній. 104 tracked/unignored файли перевірено на збіги зі значеннями локальних
+  секретів довжиною від 12 символів: збігів немає. Це не повний аудит історії Git.
+- Користувач підтвердив етап 5: голосову сесію, перепідключення та зміну голосу.
+  Нові розмови з кожним із чотирьох голосів автоматично не виконувались;
+  після фінального етапу користувач окремо підтвердив їх ручну перевірку.
+- Пошук консервативний: незнайомі перефразування можуть давати false negative;
+  тести не є гарантією відсутності помилок для всіх можливих питань.
+- Граничні тести 1000 символів покривають ASCII/англомовний сценарій. Питання з
+  великою кількістю рідкісних багатобайтових Unicode-символів можуть перевищити
+  байтовий ліміт UNIQUE B-tree індексу PostgreSQL і не зберегтися. Це відтворено
+  окремо в тестовій транзакції; універсальна Unicode-підтримка потребує зміни
+  індексу/валідації та не є підтвердженою властивістю цієї версії.
+- Гілка виправлень: `codex/audit-fixes`. Користувач дозволив публікацію та
+  злиття у `main`. Для запуску потрібен main із цими виправленнями;
+  попередня версія main містить стару реалізацію seed.
 
 Матриця звіряє реалізацію з обов'язковою частиною PRD. Позначка `manual`
 означає, що критерій перевірено користувачем у LiveKit Playground.
@@ -56,16 +88,18 @@
 
 ## Фінальні автоматичні команди
 
+Нижче лише unit/component перевірки для вже інтегрованої актуальної гілки.
+Opt-in PostgreSQL тести змінюють дані: їх слід запускати **тільки на окремому
+тестовому Compose-проєкті** з явними `INTEGRATION_BACKEND_URL`,
+`INTEGRATION_DATABASE_URL`, `SEED_TEST_DATABASE_URL`, не на робочій БД.
+
 ```powershell
 docker compose up --build -d
 docker compose ps
 docker compose run --rm backend pytest -q
 docker compose run --rm agent pytest -q
 docker compose build --no-cache admin
-docker compose exec -T backend pytest -q tests/test_voice_admin_postgres.py
 docker compose exec -T db psql -U meridian -d meridian -c "SELECT COUNT(*) AS voices, COUNT(*) FILTER (WHERE is_active) AS active FROM voice_configs;"
-docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_postgres_concurrency.py
-docker compose run --rm -e RUN_POSTGRES_INTEGRATION=1 backend pytest -q tests/test_faq_admin_postgres.py
 Invoke-RestMethod http://localhost:8000/health
 ```
 

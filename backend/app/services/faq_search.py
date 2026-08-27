@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import FAQ
+from app.seed_data import LEGACY_TO_ENGLISH_QUESTIONS
 from app.services.embeddings import embed_faq, embed_query
 from app.services.search_aliases import faq_search_aliases
+from app.services.search_terms import lexical_text, topic_terms
 from app.services.text import normalize_question
 
 
@@ -26,27 +28,33 @@ def _score(query: str, candidate: str) -> float:
 
 
 def find_best_faq(db: Session, question: str) -> tuple[FAQ | None, float]:
-    normalized_query = normalize_question(question)
+    is_english_query = not any("\u0400" <= character <= "\u04ff" for character in question)
+    normalize = lexical_text if is_english_query else normalize_question
+    normalized_query = normalize(question)
     faqs = list(db.scalars(select(FAQ)))
+    if is_english_query:
+        required = topic_terms(question)
+        if not required:
+            return None, 0.0
+        # Aliases rank candidates but cannot supply facts absent from the current FAQ.
+        faqs = [faq for faq in faqs if required <= topic_terms(
+            f"{LEGACY_TO_ENGLISH_QUESTIONS.get(faq.question, faq.question)} {faq.answer}"
+        )]
+    if not faqs:
+        return None, 0.0
     lexical_faq = None
     lexical_score = 0.0
     for faq in faqs:
-        normalized_question = normalize_question(faq.question)
-        aliases = " ".join(faq_search_aliases(faq.question))
-        searchable = normalize_question(
-            f"{faq.question} {aliases} {faq.answer} {faq.category}"
+        score = max(
+            _score(normalized_query, normalize(candidate))
+            for candidate in (faq.question, faq.answer, *faq_search_aliases(faq.question))
         )
-        score = _score(normalized_query, searchable)
-        for marker in {"aurelia", "carbone", "proposal", "освідчення"}:
-            if marker in normalized_query.split() and marker in normalized_question.split():
-                score = min(1.0, score + 0.4)
         if score > lexical_score:
             lexical_faq, lexical_score = faq, score
 
     semantic_faq = None
     semantic_score = 0.0
     semantic_runner_up_score = 0.0
-    is_english_query = not any("\u0400" <= character <= "\u04ff" for character in question)
     if not is_english_query:
         return lexical_faq, lexical_score
 
@@ -56,6 +64,7 @@ def find_best_faq(db: Session, question: str) -> tuple[FAQ | None, float]:
         rows = db.execute(
             select(FAQ, (1 - distance).label("similarity"))
             .where(FAQ.embedding.is_not(None))
+            .where(FAQ.id.in_([faq.id for faq in faqs]))
             .order_by(distance)
             .limit(2)
         ).all()

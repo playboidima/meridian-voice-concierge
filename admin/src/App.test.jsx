@@ -70,7 +70,7 @@ describe("Meridian admin", () => {
     expect(fetch.mock.calls[1][1].method).toBe("POST");
   });
 
-  it("converts an unanswered question", async () => {
+  it("shows a converted FAQ in the library without a reload or follow-up fetch", async () => {
     const user = userEvent.setup();
     const unanswered = [{
       id: 7,
@@ -84,8 +84,11 @@ describe("Meridian admin", () => {
     fetch
       .mockImplementationOnce(() => jsonResponse([faq]))
       .mockImplementationOnce(() => jsonResponse(unanswered))
-      .mockImplementationOnce(() => jsonResponse(faq, 201))
-      .mockImplementationOnce(() => jsonResponse([]));
+      .mockImplementationOnce(() => jsonResponse({
+        ...faq, id: 2, question: unanswered[0].original_question,
+        answer: "Transfers can be arranged.",
+      }, 201))
+      .mockImplementation(() => jsonResponse({ detail: "Refresh unavailable" }, 503));
     render(<App />);
 
     await screen.findByText("When is check-in?");
@@ -96,8 +99,48 @@ describe("Meridian admin", () => {
     await user.type(screen.getByLabelText("Category"), "hotel");
     await user.click(screen.getByRole("button", { name: "Create FAQ" }));
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    expect(await screen.findByText("Question converted to FAQ.")).toBeInTheDocument();
+    expect(screen.queryByText("Is airport transfer available?")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "FAQ Library" }));
+    expect(await screen.findByText("Is airport transfer available?")).toBeInTheDocument();
+    expect(screen.getByText("Transfers can be arranged.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(3);
     expect(fetch.mock.calls[2][0]).toBe("/api/admin/unanswered/7/convert");
+  });
+
+  it("retains the question and draft when conversion fails", async () => {
+    const user = userEvent.setup();
+    fetch
+      .mockImplementationOnce(() => jsonResponse([faq]))
+      .mockImplementationOnce(() => jsonResponse([{
+        id: 7, original_question: "Is airport transfer available?",
+        frequency: 1, last_seen_at: "2026-08-24T11:00:00Z", status: "open",
+      }]))
+      .mockImplementationOnce(() => jsonResponse({ detail: "FAQ question already exists" }, 409));
+    render(<App />);
+    await screen.findByText(faq.question);
+    await user.click(screen.getByRole("button", { name: "Unanswered Queue" }));
+    await user.click(await screen.findByRole("button", { name: "Convert" }));
+    await user.type(screen.getByLabelText("Answer"), "Transfers can be arranged.");
+    await user.type(screen.getByLabelText("Category"), "hotel");
+    await user.click(screen.getByRole("button", { name: "Create FAQ" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("FAQ question already exists");
+    expect(screen.getByLabelText("Answer")).toHaveValue("Transfers can be arranged.");
+    expect(screen.getByRole("button", { name: "Convert" })).toBeInTheDocument();
+  });
+
+  it("accepts a 1000-character FAQ question and prevents typing past the limit", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText(faq.question);
+    await user.click(screen.getByRole("button", { name: "Add FAQ" }));
+    const question = screen.getByLabelText("Question");
+    await user.click(question);
+    await user.paste("q".repeat(1000));
+    expect(question).toHaveValue("q".repeat(1000));
+    await user.type(question, "x");
+    expect(question).toHaveValue("q".repeat(1000));
   });
 
   it("dismisses only after confirmation", async () => {

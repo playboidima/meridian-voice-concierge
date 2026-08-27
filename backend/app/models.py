@@ -7,11 +7,18 @@ from pgvector.sqlalchemy import VECTOR
 from app.db import Base
 
 
+class SeedState(Base):
+    __tablename__ = "seed_state"
+
+    name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    applied: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+
 class FAQ(Base):
     __tablename__ = "faqs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    question: Mapped[str] = mapped_column(String(500), unique=True)
+    question: Mapped[str] = mapped_column(String(1000), unique=True)
     answer: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(100), index=True)
     embedding: Mapped[list[float] | None] = mapped_column(VECTOR(384), nullable=True)

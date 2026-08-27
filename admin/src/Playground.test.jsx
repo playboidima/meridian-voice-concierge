@@ -24,7 +24,10 @@ vi.mock("@livekit/components-react", () => ({
   StartAudio: ({ label }) => <button>{label}</button>,
   TrackToggle: ({ children }) => <button>{children}</button>,
   useAgent: () => livekit.agent,
-  useSession: () => ({ ...livekit.session }),
+  useSession: (_source, options) => {
+    if (options?.agentName) throw new Error("Agent dispatch must be configured by the backend");
+    return { ...livekit.session };
+  },
 }));
 
 import Playground from "./Playground";

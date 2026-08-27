@@ -30,6 +30,11 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
+            # Capture this before any revisions run: an empty existing catalog
+            # must not be mistaken for a brand-new installation.
+            config.attributes["existing_installation"] = (
+                context.get_context().get_current_revision() is not None
+            )
             context.run_migrations()
 
 

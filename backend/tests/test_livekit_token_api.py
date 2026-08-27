@@ -1,5 +1,6 @@
 import base64
 import json
+import pytest
 
 from app.config import settings
 
@@ -48,6 +49,18 @@ def test_token_endpoint_returns_short_lived_room_scoped_credentials(client, monk
     assert payload["video"]["roomJoin"] is True
     assert payload["video"]["canPublish"] is True
     assert payload["video"]["canSubscribe"] is True
+    assert payload["roomConfig"]["agents"] == [{"agentName": "meridian-concierge"}]
+
+
+@pytest.mark.parametrize("agents", [[], [{"agent_name": "old-agent"}],
+    [{"agentName": "old-agent"}, {"agentName": "duplicate"}]])
+def test_dispatch_uses_only_configured_agent(client, monkeypatch, agents):
+    configure_livekit(monkeypatch)
+    monkeypatch.setattr(settings, "agent_name", "meridian-audit-agent")
+    response = client.post("/api/livekit/token", json={"room_config": {"agents": agents}})
+    assert response.status_code == 201
+    payload = decode_jwt_payload(response.json()["participant_token"])
+    assert payload["roomConfig"]["agents"] == [{"agentName": "meridian-audit-agent"}]
 
 
 def test_token_endpoint_generates_unique_default_sessions(client, monkeypatch):

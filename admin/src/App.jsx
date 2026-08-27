@@ -30,7 +30,7 @@ function FaqForm({ initial, onCancel, onSave }) {
           <div><span className="eyebrow">Knowledge base</span><h2>{initial ? "Edit FAQ" : "Add FAQ"}</h2></div>
           <button className="icon-button" type="button" onClick={onCancel} aria-label="Close">×</button>
         </div>
-        <label>Question<textarea value={draft.question} onChange={update("question")} required minLength="2" /></label>
+        <label>Question<textarea value={draft.question} onChange={update("question")} required minLength="2" maxLength="1000" /></label>
         <label>Answer<textarea value={draft.answer} onChange={update("answer")} required minLength="2" rows="5" /></label>
         <label>Category<input value={draft.category} onChange={update("category")} required minLength="2" /></label>
         <div className="form-actions"><button className="button secondary" type="button" onClick={onCancel}>Cancel</button><button className="button primary" type="submit">Save FAQ</button></div>
@@ -178,9 +178,11 @@ export default function App() {
 
   async function convert(payload) {
     await run(async () => {
-      await faqApi.convertUnanswered(convertItem.id, payload);
+      const convertedId = convertItem.id;
+      const created = await faqApi.convertUnanswered(convertedId, payload);
+      setFaqs((current) => [...current.filter((item) => item.id !== created.id), created].sort((a, b) => a.id - b.id));
+      setUnanswered((current) => current.filter((item) => item.id !== convertedId));
       setConvertItem(undefined);
-      setUnanswered(await faqApi.listUnanswered());
     }, "Question converted to FAQ.");
   }
 

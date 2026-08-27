@@ -18,7 +18,7 @@ class FAQSearchResponse(BaseModel):
 class FAQAdminWrite(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    question: str = Field(min_length=2, max_length=500)
+    question: str = Field(min_length=2, max_length=1000)
     answer: str = Field(min_length=2)
     category: str = Field(min_length=2, max_length=100)
 

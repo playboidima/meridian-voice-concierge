@@ -38,9 +38,12 @@ def create_playground_token(payload: LiveKitTokenRequest) -> LiveKitTokenRespons
         token = token.with_metadata(payload.participant_metadata)
     if payload.participant_attributes:
         token = token.with_attributes(payload.participant_attributes)
-    if payload.room_config:
-        room_config = ParseDict(payload.room_config, api.RoomConfiguration())
-        token = token.with_room_config(room_config)
+    room_config = ParseDict(payload.room_config or {}, api.RoomConfiguration())
+    metadata = room_config.agents[0].metadata if room_config.agents else ""
+    # The server selects exactly one worker, even for older Playground clients.
+    room_config.ClearField("agents")
+    room_config.agents.add(agent_name=settings.agent_name, metadata=metadata)
+    token = token.with_room_config(room_config)
 
     return LiveKitTokenResponse(
         server_url=settings.livekit_url,

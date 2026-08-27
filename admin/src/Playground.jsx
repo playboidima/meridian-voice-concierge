@@ -147,7 +147,7 @@ function PlaygroundPanel({ session }) {
 }
 
 export default function Playground() {
-  const session = useSession(tokenSource, { agentName: "meridian-concierge" });
+  const session = useSession(tokenSource);
   return (
     <SessionProvider session={session}>
       <PlaygroundPanel session={session} />

@@ -24,6 +24,7 @@ FAQ_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
         "Де поїсти недалеко від готелю?",
         "Порадьте ресторан поблизу.",
         "Can you recommend a good restaurant nearby?",
+        "Where can I eat at a nearby restaurant?",
     ),
     "Які пакети є для дня народження, річниці або освідчення?": (
         "Хочу зробити пропозицію дівчині.",
@@ -60,6 +61,7 @@ FAQ_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
         "Ваш спортзал працює вночі?",
         "Фітнес центр відкритий цілодобово?",
         "Is the fitness center open at night?",
+        "Where can I exercise or work out?",
     ),
     "Коли працює Nightclub NOVA?": (
         "Коли працює нічний клуб NOVA?",
@@ -70,6 +72,7 @@ FAQ_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
         "Що є в пентхаусі?",
         "Скільки коштує пентхаус?",
         "What is included in the Penthouse Suite?",
+        "Which room has an outdoor terrace?",
     ),
     "Які столи для блекджеку доступні?": (
         "Де можна пограти в блекджек?",
